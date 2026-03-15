@@ -61,6 +61,7 @@ jobs:
             export TENFRONT_CONSUMER_KEY="${{ secrets.TENFRONT_CONSUMER_KEY }}"
             export TENFRONT_CONSUMER_SECRET="${{ secrets.TENFRONT_CONSUMER_SECRET }}"
             export CRON_SCHEDULE="${{ secrets.CRON_SCHEDULE }}"
+            export APP_SECRET="${{ secrets.APP_SECRET }}"
             docker stack deploy \
               --with-registry-auth \
               --compose-file /opt/mids/docker-compose.app.yml \
