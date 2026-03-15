@@ -97,13 +97,14 @@ export default function Dashboard() {
   const [pipelines, setPipelines] = useState<KommoPipeline[]>([]);
   const [config, setConfig] = useState<SyncConfig>({ markAsWon: true });
   const [saving, setSaving] = useState(false);
+  const [savedOk, setSavedOk] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
   const [retrying, setRetrying] = useState<string | null>(null);
   const [editPhone, setEditPhone] = useState<{ matchId: string; value: string } | null>(null);
   const [debugData, setDebugData] = useState<unknown>(null);
   const [showDebug, setShowDebug] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'crm' | 'chat' | 'config'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'chat' | 'config'>('overview');
   const [crmData, setCrmData] = useState<{ pipelines: CrmPipeline[]; leads: CrmLead[] } | null>(null);
   const [loadingCrm, setLoadingCrm] = useState(false);
   const [chatData, setChatData] = useState<Talk[]>([]);
@@ -141,7 +142,7 @@ export default function Dashboard() {
   }, [fetchAll]);
 
   useEffect(() => {
-    if ((activeTab === 'crm' || activeTab === 'overview') && !crmData && !loadingCrm) {
+    if (activeTab === 'overview' && !crmData && !loadingCrm) {
       setLoadingCrm(true);
       fetch('/api/crm').then(r => r.json())
         .then(d => setCrmData(d))
@@ -174,13 +175,15 @@ export default function Dashboard() {
   }, [activeTab, analyticsData, loadingAnalytics]);
 
   const saveConfig = async () => {
-    setSaving(true);
+    setSaving(true); setSavedOk(false);
     try {
       await fetch('/api/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(config),
       });
+      setSavedOk(true);
+      setTimeout(() => setSavedOk(false), 3000);
     } finally { setSaving(false); }
   };
 
@@ -251,16 +254,16 @@ export default function Dashboard() {
   }, []);
 
   const mockFunnelData = [
-    { label: 'Novo Lead', value: 120, displayValue: '120', color: '#6366f1' },
-    { label: 'Qualificado', value: 74, displayValue: '74', color: '#AEFF6E' },
-    { label: 'Proposta', value: 38, displayValue: '38', color: '#f59e0b' },
-    { label: 'Negociação', value: 21, displayValue: '21', color: '#06b6d4' },
-    { label: 'Vendido', value: 12, displayValue: '12', color: '#16a34a' },
+    { label: 'Novo Lead', value: 120, displayValue: '120', color: '#2563eb' },
+    { label: 'Qualificado', value: 74, displayValue: '74', color: '#2563eb' },
+    { label: 'Proposta', value: 38, displayValue: '38', color: '#2563eb' },
+    { label: 'Negociação', value: 21, displayValue: '21', color: '#2563eb' },
+    { label: 'Vendido', value: 12, displayValue: '12', color: '#2563eb' },
   ];
 
   const selectedPipeline = pipelines.find(p => p.id === config.pipelineId);
   const availableStages = selectedPipeline
-    ? selectedPipeline._embedded.statuses.filter(s => s.type !== 143)
+    ? selectedPipeline._embedded.statuses.filter(s => s.type !== 143 && s.type !== 142)
     : [];
 
   const todayStr = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
@@ -284,7 +287,6 @@ export default function Dashboard() {
           <nav className="hidden sm:flex items-center gap-1">
             {([
               { key: 'overview', label: 'Visão Geral' },
-              { key: 'crm', label: 'CRM' },
               { key: 'chat', label: 'Chat' },
               { key: 'config', label: 'Configuração' },
             ] as const).map(tab => (
@@ -326,12 +328,6 @@ export default function Dashboard() {
               <rect x="11" y="2" width="7" height="7" rx="1.5" fill="currentColor" opacity=".4"/>
               <rect x="2" y="11" width="7" height="7" rx="1.5" fill="currentColor" opacity=".4"/>
               <rect x="11" y="11" width="7" height="7" rx="1.5" fill="currentColor" opacity=".4"/>
-            </svg>
-          )},
-          { key: 'crm', label: 'CRM', icon: (
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <circle cx="10" cy="7" r="3.5" fill="currentColor" opacity=".9"/>
-              <path d="M3 17c0-3.314 3.134-6 7-6s7 2.686 7 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" opacity=".9"/>
             </svg>
           )},
           { key: 'chat', label: 'Chat', icon: (
@@ -658,12 +654,11 @@ export default function Dashboard() {
                 const wonLeads = pipelineLeads.filter((l: CrmLead) => wonStages.some((s: CrmStatus) => s.id === l.status_id));
                 totalLeads = pipelineLeads.length;
                 wonCount = wonLeads.length;
-                const stageColors = ['#AEFF6E', '#6ee7b7', '#6366f1', '#f59e0b', '#06b6d4', '#f43f5e', '#a78bfa', '#fb923c'];
-                const funnelStages = activeStages.map((stage: CrmStatus, si: number) => {
+                const funnelStages = activeStages.map((stage: CrmStatus) => {
                   const count = pipelineLeads.filter((l: CrmLead) => l.status_id === stage.id).length;
-                  return { label: stage.name, value: Math.max(count, 1), displayValue: String(count), color: stage.color && stage.color !== '#FFFFFF' ? stage.color : stageColors[si % stageColors.length] };
+                  return { label: stage.name, value: Math.max(count, 1), displayValue: String(count), color: '#2563eb' };
                 });
-                if (wonLeads.length > 0) funnelStages.push({ label: 'Vendidos', value: wonLeads.length, displayValue: String(wonLeads.length), color: '#16a34a' });
+                if (wonLeads.length > 0) funnelStages.push({ label: 'Vendidos', value: wonLeads.length, displayValue: String(wonLeads.length), color: '#2563eb' });
                 const maxVal = Math.max(...funnelStages.map(s => s.value), 1);
                 normalizedFunnel = [{ ...funnelStages[0]!, value: maxVal }, ...funnelStages.slice(1)];
               } else {
@@ -683,10 +678,11 @@ export default function Dashboard() {
                       </p>
                     </div>
                   </div>
-                  <div style={{ '--chart-1': '#AEFF6E', '--color-muted': 'transparent', '--chart-grid': 'rgba(0,0,0,0.06)', '--chart-foreground': '#111827', '--chart-foreground-muted': '#6B7280' } as React.CSSProperties}>
+                  <div style={{ height: 280, '--chart-1': '#2563eb', '--color-muted': 'transparent', '--chart-grid': 'rgba(0,0,0,0.06)', '--chart-foreground': '#111827', '--chart-foreground-muted': '#6B7280' } as React.CSSProperties}>
                     <FunnelChart
                       data={normalizedFunnel}
                       orientation="vertical"
+                      color="#2563eb"
                       layers={3}
                       gap={6}
                       showPercentage={true}
@@ -695,6 +691,7 @@ export default function Dashboard() {
                       edges="curved"
                       labelLayout="spread"
                       formatValue={(v) => String(v)}
+                      style={{ aspectRatio: 'unset', height: '100%' }}
                     />
                   </div>
                 </div>
@@ -892,92 +889,6 @@ export default function Dashboard() {
           </>
         )}
 
-        {/* ══ CRM TAB ══ */}
-        {activeTab === 'crm' && (
-          <div className="mt-4 sm:mt-6">
-            <div className="mb-4 sm:mb-6 flex items-center justify-between">
-              <div>
-                <p className="text-xs text-gray-400 uppercase tracking-widest font-medium mb-0.5">Kommo CRM</p>
-                <h1 className="text-2xl sm:text-[2rem] font-bold text-gray-900 leading-tight">Pipelines</h1>
-              </div>
-              <button onClick={() => { setCrmData(null); setLoadingCrm(false); }}
-                className="text-xs text-gray-500 border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50 transition-colors">
-                ↺ Atualizar
-              </button>
-            </div>
-
-            {loadingCrm && (
-              <div className="flex items-center justify-center py-24">
-                <div className="w-8 h-8 border-2 border-gray-300 border-t-transparent rounded-full animate-spin" />
-              </div>
-            )}
-
-            {!loadingCrm && crmData && (
-              <>
-                {crmData.pipelines.length === 0 ? (
-                  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm py-20 text-center">
-                    <p className="text-gray-400 text-sm">Nenhum pipeline encontrado</p>
-                  </div>
-                ) : (
-                  <div className="space-y-6">
-                    {crmData.pipelines.map(pipeline => {
-                      const allStatuses = pipeline._embedded.statuses;
-                      const wonStages = allStatuses.filter((s: CrmStatus) => s.type === 142);
-                      const activeStages = allStatuses.filter((s: CrmStatus) => s.type !== 142 && s.type !== 143);
-                      const pipelineLeads = crmData.leads.filter((l: CrmLead) => l.pipeline_id === pipeline.id);
-                      const totalLeads = pipelineLeads.length;
-                      const wonLeads = pipelineLeads.filter((l: CrmLead) => wonStages.some((s: CrmStatus) => s.id === l.status_id)).length;
-                      const wonValue = pipelineLeads
-                        .filter((l: CrmLead) => wonStages.some((s: CrmStatus) => s.id === l.status_id))
-                        .reduce((acc: number, l: CrmLead) => acc + (l.price ?? 0), 0);
-
-                      return (
-                        <div key={pipeline.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                          <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-                            <div>
-                              <h2 className="text-sm font-semibold text-gray-900">{pipeline.name}</h2>
-                              <p className="text-xs text-gray-400 mt-0.5">
-                                {totalLeads} leads · {wonLeads} ganhos{wonValue > 0 ? ` · ${formatCurrency(wonValue)}` : ''}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="divide-y divide-gray-50">
-                            {activeStages.map((stage: CrmStatus, si: number) => {
-                              const stageLeads = pipelineLeads.filter((l: CrmLead) => l.status_id === stage.id);
-                              const stageTotal = stageLeads.reduce((acc: number, l: CrmLead) => acc + (l.price ?? 0), 0);
-                              const stageColor = stage.color && stage.color !== '#FFFFFF' ? stage.color : ['#AEFF6E', '#6366f1', '#f59e0b', '#06b6d4', '#f43f5e'][si % 5];
-                              const stagePct = totalLeads > 0 ? Math.round(stageLeads.length / totalLeads * 100) : 0;
-                              return (
-                                <div key={stage.id} className="px-5 py-3">
-                                  <div className="flex items-center gap-2 mb-1.5">
-                                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: stageColor }} />
-                                    <p className="text-sm font-medium text-gray-700 flex-1 truncate">{stage.name}</p>
-                                    <span className="text-xs font-semibold text-gray-600">{stageLeads.length}</span>
-                                    {stageTotal > 0 && (
-                                      <span className="text-xs text-gray-400 ml-1">{formatCurrency(stageTotal)}</span>
-                                    )}
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                                      <div className="h-full rounded-full transition-all duration-700"
-                                        style={{ width: `${stagePct}%`, background: stageColor }} />
-                                    </div>
-                                    <span className="text-xs text-gray-300 w-8 text-right">{stagePct}%</span>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        )}
-
         {/* ══ CHAT TAB ══ */}
         {activeTab === 'chat' && (
           <div className="mt-4 sm:mt-6">
@@ -1095,9 +1006,12 @@ export default function Dashboard() {
                 </div>
               )}
 
-              <div className="flex justify-end pt-4 border-t border-gray-100">
+              <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                {savedOk && (
+                  <span className="text-sm text-green-600 font-medium">✓ Configuração salva</span>
+                )}
                 <button onClick={saveConfig} disabled={saving}
-                  className="text-sm font-semibold px-6 py-2.5 rounded-xl transition-all disabled:opacity-50"
+                  className="ml-auto text-sm font-semibold px-6 py-2.5 rounded-xl transition-all disabled:opacity-50"
                   style={{ background: '#AEFF6E', color: '#111' }}>
                   {saving ? 'Salvando...' : 'Salvar configuração'}
                 </button>
