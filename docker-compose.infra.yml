@@ -6,9 +6,8 @@ services:
     command:
       - --api.dashboard=true
       - --api.insecure=true
-      - --providers.docker=true
-      - --providers.docker.swarmMode=true
-      - --providers.docker.exposedbydefault=false
+      - --providers.swarm=true
+      - --providers.swarm.exposedbydefault=false
       - --entrypoints.web.address=:80
       - --entrypoints.websecure.address=:443
       # Let's Encrypt (SSL automático) — descomente quando tiver domínio:
