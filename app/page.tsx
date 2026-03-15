@@ -113,7 +113,7 @@ export default function Dashboard() {
     fetchAll();
     fetch('/api/pipelines').then(r => r.json())
       .then(d => setPipelines(Array.isArray(d) ? d : []))
-      .catch(() => {});
+      .catch(() => { });
   }, [fetchAll]);
 
   useEffect(() => {
@@ -121,7 +121,7 @@ export default function Dashboard() {
       setLoadingCrm(true);
       fetch('/api/crm').then(r => r.json())
         .then(d => setCrmData(d))
-        .catch(() => {})
+        .catch(() => { })
         .finally(() => setLoadingCrm(false));
     }
   }, [activeTab, crmData, loadingCrm]);
@@ -131,7 +131,7 @@ export default function Dashboard() {
       setLoadingChat(true);
       fetch('/api/chat').then(r => r.json())
         .then(d => setChatData(d?.talks ?? []))
-        .catch(() => {})
+        .catch(() => { })
         .finally(() => setLoadingChat(false));
     }
   }, [activeTab, chatData, loadingChat]);
@@ -235,7 +235,7 @@ export default function Dashboard() {
                 <path d="M7 1.5L12.5 4.5V9.5L7 12.5L1.5 9.5V4.5L7 1.5Z" fill="#111" strokeWidth="0" />
               </svg>
             </div>
-            <span className="font-semibold text-gray-900 text-sm tracking-tight">TenFront Sync</span>
+            <span className="font-semibold text-gray-900 text-sm tracking-tight">Mids</span>
           </div>
           {/* Nav */}
           <nav className="flex items-center gap-1">
@@ -719,7 +719,7 @@ export default function Dashboard() {
                                     <div className="px-4 py-3 border-b border-gray-50">
                                       <div className="flex items-center gap-2 mb-1">
                                         <div className="w-2 h-2 rounded-full flex-shrink-0"
-                                          style={{ background: stage.color || ['#AEFF6E','#6366f1','#f59e0b','#06b6d4','#f43f5e'][si % 5] }} />
+                                          style={{ background: stage.color || ['#AEFF6E', '#6366f1', '#f59e0b', '#06b6d4', '#f43f5e'][si % 5] }} />
                                         <p className="text-xs font-semibold text-gray-700 truncate">{stage.name}</p>
                                         <span className="ml-auto text-xs text-gray-300 flex-shrink-0">{stageLeads.length}</span>
                                       </div>

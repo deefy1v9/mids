@@ -43,7 +43,7 @@ export default function LoginPage() {
               <path d="M7 1.5L12.5 4.5V9.5L7 12.5L1.5 9.5V4.5L7 1.5Z" fill="#111" />
             </svg>
           </div>
-          <span className="font-semibold text-gray-900 text-base tracking-tight">TenFront Sync</span>
+          <span className="font-semibold text-gray-900 text-base tracking-tight">Mids</span>
         </div>
 
         <h1 className="text-xl font-bold text-gray-900 mb-1">Entrar</h1>
