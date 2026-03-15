@@ -27,6 +27,13 @@ interface Talk {
   last_message?: { text?: string; created_at?: number };
   _embedded?: { contact?: TalkContact };
 }
+interface TalkMessage {
+  id: string;
+  text?: string;
+  type?: string;
+  created_at?: number;
+  author?: { type?: string; id?: string; name?: string };
+}
 
 interface MatchRecord {
   id: string;
@@ -109,8 +116,10 @@ export default function Dashboard() {
   const [crmData, setCrmData] = useState<{ pipelines: CrmPipeline[]; leads: CrmLead[] } | null>(null);
   const [loadingCrm, setLoadingCrm] = useState(false);
   const [chatData, setChatData] = useState<Talk[]>([]);
-  const [chatSubdomain, setChatSubdomain] = useState('');
   const [loadingChat, setLoadingChat] = useState(false);
+  const [openTalk, setOpenTalk] = useState<Talk | null>(null);
+  const [talkMessages, setTalkMessages] = useState<TalkMessage[]>([]);
+  const [loadingMessages, setLoadingMessages] = useState(false);
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(() => {
     try {
       const raw = typeof window !== 'undefined' ? localStorage.getItem('mids_analytics') : null;
@@ -157,7 +166,7 @@ export default function Dashboard() {
     if (activeTab === 'chat' && chatData.length === 0 && !loadingChat) {
       setLoadingChat(true);
       fetch('/api/chat').then(r => r.json())
-        .then(d => { setChatData(d?.talks ?? []); if (d?.subdomain) setChatSubdomain(d.subdomain); })
+        .then(d => { setChatData(d?.talks ?? []); })
         .catch(() => { })
         .finally(() => setLoadingChat(false));
     }
@@ -175,6 +184,16 @@ export default function Dashboard() {
         .finally(() => setLoadingAnalytics(false));
     }
   }, [activeTab, analyticsData, loadingAnalytics]);
+
+  const openTalkMessages = (talk: Talk) => {
+    setOpenTalk(talk);
+    setTalkMessages([]);
+    setLoadingMessages(true);
+    fetch(`/api/chat/messages?talkId=${talk.id}`).then(r => r.json())
+      .then(d => setTalkMessages(d?.messages ?? []))
+      .catch(() => { })
+      .finally(() => setLoadingMessages(false));
+  };
 
   const saveConfig = async () => {
     setSaving(true); setSavedOk(false);
@@ -324,25 +343,31 @@ export default function Dashboard() {
       {/* ─── Mobile Bottom Nav ─── */}
       <nav className="sm:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-30 flex">
         {([
-          { key: 'overview', label: 'Geral', icon: (
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <rect x="2" y="2" width="7" height="7" rx="1.5" fill="currentColor" opacity=".9"/>
-              <rect x="11" y="2" width="7" height="7" rx="1.5" fill="currentColor" opacity=".4"/>
-              <rect x="2" y="11" width="7" height="7" rx="1.5" fill="currentColor" opacity=".4"/>
-              <rect x="11" y="11" width="7" height="7" rx="1.5" fill="currentColor" opacity=".4"/>
-            </svg>
-          )},
-          { key: 'chat', label: 'Chat', icon: (
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v9a1 1 0 01-1 1H7l-4 3V4z" fill="currentColor" opacity=".9"/>
-            </svg>
-          )},
-          { key: 'config', label: 'Config', icon: (
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <circle cx="10" cy="10" r="2.5" fill="currentColor"/>
-              <path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.22 4.22l1.42 1.42M14.36 14.36l1.42 1.42M4.22 15.78l1.42-1.42M14.36 5.64l1.42-1.42" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-            </svg>
-          )},
+          {
+            key: 'overview', label: 'Geral', icon: (
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <rect x="2" y="2" width="7" height="7" rx="1.5" fill="currentColor" opacity=".9" />
+                <rect x="11" y="2" width="7" height="7" rx="1.5" fill="currentColor" opacity=".4" />
+                <rect x="2" y="11" width="7" height="7" rx="1.5" fill="currentColor" opacity=".4" />
+                <rect x="11" y="11" width="7" height="7" rx="1.5" fill="currentColor" opacity=".4" />
+              </svg>
+            )
+          },
+          {
+            key: 'chat', label: 'Chat', icon: (
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v9a1 1 0 01-1 1H7l-4 3V4z" fill="currentColor" opacity=".9" />
+              </svg>
+            )
+          },
+          {
+            key: 'config', label: 'Config', icon: (
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <circle cx="10" cy="10" r="2.5" fill="currentColor" />
+                <path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.22 4.22l1.42 1.42M14.36 14.36l1.42 1.42M4.22 15.78l1.42-1.42M14.36 5.64l1.42-1.42" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              </svg>
+            )
+          },
         ] as const).map(tab => (
           <button key={tab.key} onClick={() => setActiveTab(tab.key)}
             className="flex-1 py-2.5 flex flex-col items-center gap-0.5 transition-colors"
@@ -410,7 +435,7 @@ export default function Dashboard() {
                     ))}
                   </div>
                   {analyticsData && (
-                    <button onClick={() => { try { localStorage.removeItem('mids_analytics'); } catch {} setAnalyticsData(null); setLoadingAnalytics(false); }}
+                    <button onClick={() => { try { localStorage.removeItem('mids_analytics'); } catch { } setAnalyticsData(null); setLoadingAnalytics(false); }}
                       className="text-xs text-gray-500 border border-gray-200 rounded-lg px-2.5 py-1.5 hover:bg-gray-50 transition-colors">
                       ↺
                     </button>
@@ -654,10 +679,10 @@ export default function Dashboard() {
 
               const rawFunnel = hasData
                 ? [
-                    { label: 'Chats Novos', value: Math.max(newChats, 1), displayValue: String(newChats), color: '#2563eb' },
-                    { label: 'Em Tratativa', value: Math.max(activeLeads, 1), displayValue: String(activeLeads), color: '#2563eb' },
-                    { label: 'Vendas', value: Math.max(sales, 1), displayValue: String(sales), color: '#2563eb' },
-                  ]
+                  { label: 'Chats Novos', value: Math.max(newChats, 1), displayValue: String(newChats), color: '#1eff00ff' },
+                  { label: 'Em Tratativa', value: Math.max(activeLeads, 1), displayValue: String(activeLeads), color: '#1eff00ff' },
+                  { label: 'Vendas', value: Math.max(sales, 1), displayValue: String(sales), color: '#1eff00ff' },
+                ]
                 : mockFunnelData;
 
               const maxVal = Math.max(...rawFunnel.map(d => d.value));
@@ -675,11 +700,11 @@ export default function Dashboard() {
                       </p>
                     </div>
                   </div>
-                  <div style={{ height: 280, '--chart-1': '#2563eb', '--color-muted': 'transparent', '--chart-grid': 'rgba(0,0,0,0.06)', '--chart-foreground': '#111827', '--chart-foreground-muted': '#6B7280' } as React.CSSProperties}>
+                  <div style={{ height: 280, '--chart-1': '#1eff00ff', '--color-muted': 'transparent', '--chart-grid': 'rgba(0,0,0,0.06)', '--chart-foreground': '#111827', '--chart-foreground-muted': '#6B7280' } as React.CSSProperties}>
                     <FunnelChart
                       data={normalizedFunnel}
                       orientation="vertical"
-                      color="#2563eb"
+                      color="#1eff00ff"
                       layers={3}
                       gap={6}
                       showPercentage={true}
@@ -935,12 +960,10 @@ export default function Dashboard() {
                       ? msgAt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
                       : msgAt.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
                     const preview = talk.last_message?.text?.trim() || 'Conversa ativa';
-                    const kommoUrl = chatSubdomain
-                      ? `https://${chatSubdomain}.kommo.com/chats?talkId=${talk.id}`
-                      : undefined;
 
-                    const card = (
-                      <div className="px-4 py-3.5 flex items-start gap-3 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0">
+                    return (
+                      <button key={talk.id} onClick={() => openTalkMessages(talk)}
+                        className="w-full text-left px-4 py-3.5 flex items-start gap-3 hover:bg-gray-50 active:bg-gray-100 transition-colors border-b border-gray-50 last:border-0">
                         {/* Avatar */}
                         <div className="w-11 h-11 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 mt-0.5"
                           style={{ background: '#EDE9FE', color: '#7C3AED' }}>
@@ -960,12 +983,8 @@ export default function Dashboard() {
                             </span>
                           )}
                         </div>
-                      </div>
+                      </button>
                     );
-
-                    return kommoUrl
-                      ? <a key={talk.id} href={kommoUrl} target="_blank" rel="noopener noreferrer" className="block">{card}</a>
-                      : <div key={talk.id}>{card}</div>;
                   })}
                 </div>
               </div>
