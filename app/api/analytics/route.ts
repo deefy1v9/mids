@@ -37,28 +37,37 @@ export async function GET() {
       revenue: Number(r.revenue),
     }));
 
-    // Kommo talks
+    // Kommo talks — paginated
     const subdomain = process.env.KOMMO_SUBDOMAIN;
     const token = process.env.KOMMO_ACCESS_TOKEN;
     const base = `https://${subdomain}.kommo.com/api/v4`;
     const headers = { Authorization: `Bearer ${token}` };
 
-    let talks: { created_at: number; updated_at: number }[] = [];
-    try {
-      const { data } = await axios.get(`${base}/talks`, {
-        params: { limit: 100, with: 'contact' },
-        headers,
-        validateStatus: () => true,
-      });
-      talks = data?._embedded?.talks ?? [];
-    } catch {
-      // talks stays empty — still return DB metrics
-    }
-
     const nowTs = Date.now() / 1000;
     const dayTs = nowTs - 86400;
     const weekTs = nowTs - 7 * 86400;
     const monthTs = nowTs - 30 * 86400;
+
+    let talks: { created_at: number; updated_at: number }[] = [];
+    try {
+      let page = 1;
+      const talkLimit = 250;
+      while (true) {
+        const { data } = await axios.get(`${base}/talks`, {
+          params: { limit: talkLimit, page, with: 'contact' },
+          headers,
+          validateStatus: () => true,
+        });
+        const batch: { created_at: number; updated_at: number }[] = data?._embedded?.talks ?? [];
+        talks = talks.concat(batch);
+        if (batch.length < talkLimit) break;
+        // stop early if oldest talk in this batch is already older than 30 days
+        if (batch[batch.length - 1]?.created_at < monthTs) break;
+        page++;
+      }
+    } catch {
+      // talks stays empty — still return DB metrics
+    }
 
     const calcChats = (from: number) => talks.filter(t => t.created_at >= from).length;
     const calcAvgResponse = (from: number) => {
@@ -71,31 +80,33 @@ export async function GET() {
     // Meta Ads spend
     const metaToken = process.env.META_ACCESS_TOKEN;
     const metaAccountId = process.env.META_AD_ACCOUNT_ID;
-    const fetchMetaSpend = async (datePreset: string): Promise<number> => {
-      if (!metaToken || !metaAccountId) return 0;
+    const fetchMetaSpend = async (datePreset: string): Promise<{ spend: number; error?: string }> => {
+      if (!metaToken || !metaAccountId) return { spend: 0, error: 'missing credentials' };
       try {
         const { data } = await axios.get(
           `https://graph.facebook.com/v19.0/${metaAccountId}/insights`,
           { params: { fields: 'spend', date_preset: datePreset, access_token: metaToken }, validateStatus: () => true }
         );
+        if (data?.error) return { spend: 0, error: data.error.message ?? JSON.stringify(data.error) };
         const spend = data?.data?.[0]?.spend;
-        return spend ? parseFloat(spend) : 0;
-      } catch {
-        return 0;
+        return { spend: spend ? parseFloat(spend) : 0 };
+      } catch (e) {
+        return { spend: 0, error: String(e) };
       }
     };
 
-    const [todaySpend, weekSpend, monthSpend] = await Promise.all([
+    const [todayMeta, weekMeta, monthMeta] = await Promise.all([
       fetchMetaSpend('today'),
       fetchMetaSpend('last_7d'),
       fetchMetaSpend('last_30d'),
     ]);
 
     return NextResponse.json({
-      today: { ...aggregate(today), newChats: calcChats(dayTs), avgResponseMinutes: calcAvgResponse(dayTs), metaSpend: todaySpend },
-      week: { ...aggregate(weekAgo), newChats: calcChats(weekTs), avgResponseMinutes: calcAvgResponse(weekTs), metaSpend: weekSpend },
-      month: { ...aggregate(monthAgo), newChats: calcChats(monthTs), avgResponseMinutes: calcAvgResponse(monthTs), metaSpend: monthSpend },
+      today: { ...aggregate(today), newChats: calcChats(dayTs), avgResponseMinutes: calcAvgResponse(dayTs), metaSpend: todayMeta.spend },
+      week: { ...aggregate(weekAgo), newChats: calcChats(weekTs), avgResponseMinutes: calcAvgResponse(weekTs), metaSpend: weekMeta.spend },
+      month: { ...aggregate(monthAgo), newChats: calcChats(monthTs), avgResponseMinutes: calcAvgResponse(monthTs), metaSpend: monthMeta.spend },
       dailySales,
+      metaError: todayMeta.error ?? weekMeta.error ?? monthMeta.error ?? null,
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);

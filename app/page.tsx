@@ -50,6 +50,7 @@ interface AnalyticsPeriod { sales: number; revenue: number; newChats: number; av
 interface AnalyticsData {
   today: AnalyticsPeriod; week: AnalyticsPeriod; month: AnalyticsPeriod;
   dailySales: { date: string; sales: number; revenue: number }[];
+  metaError?: string | null;
 }
 
 function formatCurrency(val?: number) {
@@ -245,8 +246,8 @@ export default function Dashboard() {
     <div className="min-h-screen" style={{ background: '#F1F3F8', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
 
       {/* ─── Header ─── */}
-      <header className="bg-white border-b border-gray-100 px-8 py-3 flex items-center justify-between sticky top-0 z-20">
-        <div className="flex items-center gap-8">
+      <header className="bg-white border-b border-gray-100 px-4 sm:px-8 py-3 flex items-center justify-between sticky top-0 z-20">
+        <div className="flex items-center gap-4 sm:gap-8">
           {/* Logo */}
           <div className="flex items-center gap-2.5">
             <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: '#AEFF6E' }}>
@@ -256,8 +257,8 @@ export default function Dashboard() {
             </div>
             <span className="font-semibold text-gray-900 text-sm tracking-tight">Mids</span>
           </div>
-          {/* Nav */}
-          <nav className="flex items-center gap-1">
+          {/* Nav — desktop only */}
+          <nav className="hidden sm:flex items-center gap-1">
             {([
               { key: 'overview', label: 'Visão Geral' },
               { key: 'crm', label: 'CRM' },
@@ -275,25 +276,63 @@ export default function Dashboard() {
           </nav>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <span className="text-xs text-gray-400 hidden sm:block">{todayStr}</span>
           <button onClick={runDebugClientes}
-            className="text-xs text-gray-500 border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50 transition-colors">
+            className="hidden sm:block text-xs text-gray-500 border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50 transition-colors">
             Debug Clientes
           </button>
           <button onClick={runSync} disabled={syncing}
-            className="flex items-center gap-2 text-sm font-semibold px-4 py-1.5 rounded-xl transition-all disabled:opacity-60"
+            className="flex items-center gap-1.5 text-sm font-semibold px-3 sm:px-4 py-1.5 rounded-xl transition-all disabled:opacity-60"
             style={{ background: '#AEFF6E', color: '#111' }}>
             {syncing
-              ? <><span className="w-3.5 h-3.5 border-2 border-gray-700 border-t-transparent rounded-full animate-spin" />Sincronizando</>
-              : '↻  Sincronizar'}
+              ? <><span className="w-3.5 h-3.5 border-2 border-gray-700 border-t-transparent rounded-full animate-spin" /><span className="hidden sm:inline">Sincronizando</span></>
+              : <><span>↻</span><span className="hidden sm:inline"> Sincronizar</span></>}
           </button>
           <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
             style={{ background: '#6366f1' }}>TK</div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-8 py-8">
+      {/* ─── Mobile Bottom Nav ─── */}
+      <nav className="sm:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-30 flex">
+        {([
+          { key: 'overview', label: 'Geral', icon: (
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <rect x="2" y="2" width="7" height="7" rx="1.5" fill="currentColor" opacity=".9"/>
+              <rect x="11" y="2" width="7" height="7" rx="1.5" fill="currentColor" opacity=".4"/>
+              <rect x="2" y="11" width="7" height="7" rx="1.5" fill="currentColor" opacity=".4"/>
+              <rect x="11" y="11" width="7" height="7" rx="1.5" fill="currentColor" opacity=".4"/>
+            </svg>
+          )},
+          { key: 'crm', label: 'CRM', icon: (
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <circle cx="10" cy="7" r="3.5" fill="currentColor" opacity=".9"/>
+              <path d="M3 17c0-3.314 3.134-6 7-6s7 2.686 7 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" opacity=".9"/>
+            </svg>
+          )},
+          { key: 'chat', label: 'Chat', icon: (
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v9a1 1 0 01-1 1H7l-4 3V4z" fill="currentColor" opacity=".9"/>
+            </svg>
+          )},
+          { key: 'config', label: 'Config', icon: (
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <circle cx="10" cy="10" r="2.5" fill="currentColor"/>
+              <path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.22 4.22l1.42 1.42M14.36 14.36l1.42 1.42M4.22 15.78l1.42-1.42M14.36 5.64l1.42-1.42" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+            </svg>
+          )},
+        ] as const).map(tab => (
+          <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+            className="flex-1 py-2.5 flex flex-col items-center gap-0.5 transition-colors"
+            style={activeTab === tab.key ? { color: '#111' } : { color: '#9CA3AF' }}>
+            {tab.icon}
+            <span className="text-[10px] font-medium">{tab.label}</span>
+          </button>
+        ))}
+      </nav>
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-8 py-6 sm:py-8 pb-24 sm:pb-8">
 
         {/* Debug panel */}
         {showDebug && (
@@ -310,13 +349,15 @@ export default function Dashboard() {
 
         {/* Sync result banner */}
         {syncResult && (
-          <div className="mb-6 rounded-2xl px-6 py-3 flex flex-wrap items-center gap-6 text-sm border"
+          <div className="mb-6 rounded-2xl px-4 sm:px-6 py-3 flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-2 sm:gap-6 text-sm border"
             style={{ background: '#F7FFF0', borderColor: '#AEFF6E' }}>
             <span className="font-semibold text-gray-800">Sincronização concluída</span>
-            <span className="text-gray-600"><b className="text-gray-900">{syncResult.total}</b> clientes</span>
-            <span style={{ color: '#16a34a' }}><b>{syncResult.updated}</b> atualizados</span>
-            <span className="text-amber-600"><b>{syncResult.notFound}</b> não encontrados</span>
-            {syncResult.errors > 0 && <span className="text-red-500"><b>{syncResult.errors}</b> erros</span>}
+            <div className="flex flex-wrap gap-3 sm:contents">
+              <span className="text-gray-600"><b className="text-gray-900">{syncResult.total}</b> clientes</span>
+              <span style={{ color: '#16a34a' }}><b>{syncResult.updated}</b> atualizados</span>
+              <span className="text-amber-600"><b>{syncResult.notFound}</b> não encontrados</span>
+              {syncResult.errors > 0 && <span className="text-red-500"><b>{syncResult.errors}</b> erros</span>}
+            </div>
           </div>
         )}
 
@@ -327,11 +368,125 @@ export default function Dashboard() {
               <p className="text-xs text-gray-400 uppercase tracking-widest font-medium mb-0.5">
                 Dados baseados em todos os clientes
               </p>
-              <h1 className="text-[2rem] font-bold text-gray-900 leading-tight">Painel Geral</h1>
+              <h1 className="text-2xl sm:text-[2rem] font-bold text-gray-900 leading-tight">Painel Geral</h1>
+            </div>
+
+            {/* ── Performance KPIs ── */}
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-3 gap-3">
+                <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Performance</p>
+                <div className="flex items-center gap-2">
+                  {loadingAnalytics && (
+                    <div className="w-4 h-4 border-2 border-gray-300 border-t-transparent rounded-full animate-spin" />
+                  )}
+                  <div className="flex items-center gap-1 bg-white border border-gray-100 rounded-xl p-1 shadow-sm">
+                    {(['today', 'week', 'month'] as const).map(p => (
+                      <button key={p} onClick={() => setAnalyticsPeriod(p)}
+                        className="px-2.5 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all"
+                        style={analyticsPeriod === p ? { background: '#111', color: '#fff' } : { color: '#9CA3AF' }}>
+                        {p === 'today' ? 'Hoje' : p === 'week' ? '7d' : '30d'}
+                      </button>
+                    ))}
+                  </div>
+                  {analyticsData && (
+                    <button onClick={() => { setAnalyticsData(null); setLoadingAnalytics(false); }}
+                      className="text-xs text-gray-500 border border-gray-200 rounded-lg px-2.5 py-1.5 hover:bg-gray-50 transition-colors">
+                      ↺
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {!loadingAnalytics && analyticsData && (() => {
+                const p = analyticsData[analyticsPeriod];
+                return (
+                  <>
+                    <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+                      {/* Vendas */}
+                      <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+                        <div className="flex items-start justify-between mb-4">
+                          <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Vendas</p>
+                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm"
+                            style={{ background: '#F0FDF4' }}>🏆</div>
+                        </div>
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-4xl font-bold text-gray-900">{p.sales}</span>
+                          <span className="text-sm text-gray-400 ml-1">fechamentos</span>
+                        </div>
+                      </div>
+
+                      {/* Faturamento */}
+                      <div className="rounded-2xl p-5 border shadow-sm relative overflow-hidden"
+                        style={{ background: '#111827', borderColor: '#1f2937' }}>
+                        <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full opacity-30"
+                          style={{ background: '#AEFF6E', filter: 'blur(30px)' }} />
+                        <div className="relative">
+                          <div className="flex items-start justify-between mb-4">
+                            <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Faturamento</p>
+                            <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
+                              style={{ background: '#AEFF6E', color: '#111' }}>R$</div>
+                          </div>
+                          <p className="text-2xl font-bold text-white leading-tight">{formatCurrency(p.revenue)}</p>
+                        </div>
+                      </div>
+
+                      {/* Meta Ads */}
+                      <div className="rounded-2xl p-5 border shadow-sm relative overflow-hidden"
+                        style={{ background: '#1a1035', borderColor: '#2d1f5e' }}>
+                        <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full opacity-20"
+                          style={{ background: '#1877F2', filter: 'blur(30px)' }} />
+                        <div className="relative">
+                          <div className="flex items-start justify-between mb-4">
+                            <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Meta Ads</p>
+                            <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
+                              style={{ background: '#1877F2', color: '#fff' }}>f</div>
+                          </div>
+                          <p className="text-2xl font-bold text-white leading-tight">{formatCurrency(p.metaSpend)}</p>
+                          {analyticsData.metaError
+                            ? <p className="text-xs text-red-400 mt-1 truncate" title={analyticsData.metaError}>⚠ erro API</p>
+                            : <p className="text-xs text-gray-500 mt-1">investido</p>
+                          }
+                        </div>
+                      </div>
+
+                      {/* Chats novos */}
+                      <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+                        <div className="flex items-start justify-between mb-4">
+                          <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Chats Novos</p>
+                          <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-sm">💬</div>
+                        </div>
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-4xl font-bold text-gray-900">{p.newChats}</span>
+                          <span className="text-sm text-gray-400 ml-1">conversas</span>
+                        </div>
+                      </div>
+
+                      {/* Tempo médio resposta */}
+                      <div className="col-span-2 lg:col-span-1 bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+                        <div className="flex items-start justify-between mb-4">
+                          <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Tempo Médio Resposta</p>
+                          <div className="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center text-sm">⏱</div>
+                        </div>
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-4xl font-bold text-gray-900">
+                            {p.avgResponseMinutes < 60 ? p.avgResponseMinutes : Math.round(p.avgResponseMinutes / 60)}
+                          </span>
+                          <span className="text-sm text-gray-400 ml-1">
+                            {p.avgResponseMinutes < 60 ? 'min' : 'h'}
+                          </span>
+                        </div>
+                        {p.avgResponseMinutes === 0 && (
+                          <p className="text-xs text-gray-300 mt-1">sem dados</p>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
 
             {/* ── Row 1: 4 Stat Cards ── */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
 
               {/* Card: Clientes Processados */}
               <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
@@ -424,7 +579,7 @@ export default function Dashboard() {
             </div>
 
             {/* ── Row 2: Charts ── */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4 mt-3 sm:mt-4">
 
               {/* Bar chart: atividade diária */}
               <div className="lg:col-span-2 bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
@@ -552,180 +707,69 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* ── Row 3: Analytics KPIs ── */}
-            <div className="mt-4">
-              <div className="flex items-center justify-between mb-3 flex-wrap gap-3">
-                <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Performance</p>
-                <div className="flex items-center gap-2">
-                  {loadingAnalytics && (
-                    <div className="w-4 h-4 border-2 border-gray-300 border-t-transparent rounded-full animate-spin" />
-                  )}
-                  <div className="flex items-center gap-1 bg-white border border-gray-100 rounded-xl p-1 shadow-sm">
-                    {(['today', 'week', 'month'] as const).map(p => (
-                      <button key={p} onClick={() => setAnalyticsPeriod(p)}
-                        className="px-4 py-1.5 rounded-lg text-sm font-medium transition-all"
-                        style={analyticsPeriod === p ? { background: '#111', color: '#fff' } : { color: '#9CA3AF' }}>
-                        {p === 'today' ? 'Hoje' : p === 'week' ? '7 dias' : '30 dias'}
-                      </button>
-                    ))}
-                  </div>
-                  {analyticsData && (
-                    <button onClick={() => { setAnalyticsData(null); setLoadingAnalytics(false); }}
-                      className="text-xs text-gray-500 border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50 transition-colors">
-                      ↺
-                    </button>
-                  )}
+            {/* ── Row 3: Daily Revenue Chart ── */}
+            {!loadingAnalytics && analyticsData && analyticsData.dailySales.length > 0 && (
+              <div className="mt-4 bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+                <div className="mb-5">
+                  <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Faturamento Diário — últimos 14 dias</p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    <b className="text-gray-800">{formatCurrency(analyticsData.dailySales.reduce((s, d) => s + d.revenue, 0))}</b> no período
+                  </p>
                 </div>
-              </div>
-
-              {!loadingAnalytics && analyticsData && (() => {
-                const p = analyticsData[analyticsPeriod];
-                return (
-                  <>
-                    <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-                      {/* Vendas */}
-                      <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                        <div className="flex items-start justify-between mb-4">
-                          <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Vendas</p>
-                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm"
-                            style={{ background: '#F0FDF4' }}>🏆</div>
-                        </div>
-                        <div className="flex items-baseline gap-1">
-                          <span className="text-4xl font-bold text-gray-900">{p.sales}</span>
-                          <span className="text-sm text-gray-400 ml-1">fechamentos</span>
-                        </div>
-                      </div>
-
-                      {/* Faturamento */}
-                      <div className="rounded-2xl p-5 border shadow-sm relative overflow-hidden"
-                        style={{ background: '#111827', borderColor: '#1f2937' }}>
-                        <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full opacity-30"
-                          style={{ background: '#AEFF6E', filter: 'blur(30px)' }} />
-                        <div className="relative">
-                          <div className="flex items-start justify-between mb-4">
-                            <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Faturamento</p>
-                            <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
-                              style={{ background: '#AEFF6E', color: '#111' }}>R$</div>
-                          </div>
-                          <p className="text-2xl font-bold text-white leading-tight">{formatCurrency(p.revenue)}</p>
-                        </div>
-                      </div>
-
-                      {/* Meta Ads */}
-                      <div className="rounded-2xl p-5 border shadow-sm relative overflow-hidden"
-                        style={{ background: '#1a1035', borderColor: '#2d1f5e' }}>
-                        <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full opacity-20"
-                          style={{ background: '#1877F2', filter: 'blur(30px)' }} />
-                        <div className="relative">
-                          <div className="flex items-start justify-between mb-4">
-                            <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Meta Ads</p>
-                            <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
-                              style={{ background: '#1877F2', color: '#fff' }}>f</div>
-                          </div>
-                          <p className="text-2xl font-bold text-white leading-tight">{formatCurrency(p.metaSpend)}</p>
-                          <p className="text-xs text-gray-500 mt-1">investido</p>
-                        </div>
-                      </div>
-
-                      {/* Chats novos */}
-                      <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                        <div className="flex items-start justify-between mb-4">
-                          <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Chats Novos</p>
-                          <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-sm">💬</div>
-                        </div>
-                        <div className="flex items-baseline gap-1">
-                          <span className="text-4xl font-bold text-gray-900">{p.newChats}</span>
-                          <span className="text-sm text-gray-400 ml-1">conversas</span>
-                        </div>
-                      </div>
-
-                      {/* Tempo médio resposta */}
-                      <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                        <div className="flex items-start justify-between mb-4">
-                          <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Tempo Médio Resposta</p>
-                          <div className="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center text-sm">⏱</div>
-                        </div>
-                        <div className="flex items-baseline gap-1">
-                          <span className="text-4xl font-bold text-gray-900">
-                            {p.avgResponseMinutes < 60 ? p.avgResponseMinutes : Math.round(p.avgResponseMinutes / 60)}
-                          </span>
-                          <span className="text-sm text-gray-400 ml-1">
-                            {p.avgResponseMinutes < 60 ? 'min' : 'h'}
-                          </span>
-                        </div>
-                        {p.avgResponseMinutes === 0 && (
-                          <p className="text-xs text-gray-300 mt-1">sem dados</p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Daily revenue bar chart */}
-                    {analyticsData.dailySales.length > 0 && (
-                      <div className="mt-4 bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                        <div className="mb-5">
-                          <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Faturamento Diário — últimos 14 dias</p>
-                          <p className="text-sm text-gray-500 mt-1">
-                            <b className="text-gray-800">{formatCurrency(analyticsData.dailySales.reduce((s, d) => s + d.revenue, 0))}</b> no período
-                          </p>
-                        </div>
-                        {(() => {
-                          const vals = analyticsData.dailySales.map(d => d.revenue);
-                          const maxV = Math.max(...vals, 1);
-                          const H = 96;
+                {(() => {
+                  const vals = analyticsData.dailySales.map(d => d.revenue);
+                  const maxV = Math.max(...vals, 1);
+                  const H = 96;
+                  return (
+                    <div>
+                      <div className="flex items-end gap-1.5" style={{ height: H }}>
+                        {analyticsData.dailySales.map((d, i) => {
+                          const h = Math.max((d.revenue / maxV) * (H - 4), 4);
+                          const isToday = i === analyticsData.dailySales.length - 1;
                           return (
-                            <div>
-                              <div className="flex items-end gap-1.5" style={{ height: H }}>
-                                {analyticsData.dailySales.map((d, i) => {
-                                  const h = Math.max((d.revenue / maxV) * (H - 4), 4);
-                                  const isToday = i === analyticsData.dailySales.length - 1;
-                                  return (
-                                    <div key={d.date} className="flex-1 flex flex-col items-center group relative">
-                                      {d.revenue > 0 && (
-                                        <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs px-1.5 py-0.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
-                                          {formatCurrency(d.revenue)}
-                                        </div>
-                                      )}
-                                      <div className="w-full rounded-t-lg transition-all duration-300"
-                                        style={{ height: `${h}px`, background: isToday ? '#AEFF6E' : '#F3F4F6' }} />
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                              <div className="flex mt-1.5">
-                                {analyticsData.dailySales.map((d, i) => {
-                                  const showLabel = i === 0 || i === 6 || i === analyticsData.dailySales.length - 1;
-                                  const dt = new Date(d.date + 'T12:00:00');
-                                  return (
-                                    <div key={d.date} className="flex-1 text-center text-xs text-gray-300">
-                                      {showLabel ? `${dt.getDate()}/${dt.getMonth() + 1}` : ''}
-                                    </div>
-                                  );
-                                })}
-                              </div>
+                            <div key={d.date} className="flex-1 flex flex-col items-center group relative">
+                              {d.revenue > 0 && (
+                                <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs px-1.5 py-0.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
+                                  {formatCurrency(d.revenue)}
+                                </div>
+                              )}
+                              <div className="w-full rounded-t-lg transition-all duration-300"
+                                style={{ height: `${h}px`, background: isToday ? '#AEFF6E' : '#F3F4F6' }} />
                             </div>
                           );
-                        })()}
+                        })}
                       </div>
-                    )}
-                  </>
-                );
-              })()}
-            </div>
+                      <div className="flex mt-1.5">
+                        {analyticsData.dailySales.map((d, i) => {
+                          const showLabel = i === 0 || i === 6 || i === analyticsData.dailySales.length - 1;
+                          const dt = new Date(d.date + 'T12:00:00');
+                          return (
+                            <div key={d.date} className="flex-1 text-center text-xs text-gray-300">
+                              {showLabel ? `${dt.getDate()}/${dt.getMonth() + 1}` : ''}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
 
             {/* ── Row 4: Match Table ── */}
-            <div className="mt-4 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between flex-wrap gap-3">
+            <div className="mt-3 sm:mt-4 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="px-4 sm:px-6 py-4 border-b border-gray-100 flex items-center justify-between flex-wrap gap-2">
                 <div>
                   <h2 className="text-sm font-semibold text-gray-900">Histórico de Matches</h2>
                   <p className="text-xs text-gray-400 mt-0.5">{matches.length} registros</p>
                 </div>
-                <div className="flex gap-2 flex-wrap">
+                <div className="flex gap-1.5 flex-wrap">
                   {[
                     { label: 'Ganhos', count: stats.won, color: '#16a34a', bg: '#f0fdf4' },
-                    { label: 'Não encontrados', count: stats.notFound, color: '#d97706', bg: '#fffbeb' },
+                    { label: 'Não enc.', count: stats.notFound, color: '#d97706', bg: '#fffbeb' },
                     { label: 'Erros', count: stats.errors, color: '#ef4444', bg: '#fef2f2' },
                   ].map(s => (
-                    <span key={s.label} className="px-3 py-1 rounded-full text-xs font-medium"
+                    <span key={s.label} className="px-2.5 py-1 rounded-full text-xs font-medium"
                       style={{ background: s.bg, color: s.color }}>
                       {s.label} · {s.count}
                     </span>
@@ -757,21 +801,26 @@ export default function Dashboard() {
 
                     return (
                       <div key={m.id}
-                        className="px-6 py-3.5 flex items-center gap-4 hover:bg-gray-50/60 transition-colors">
+                        className="px-4 sm:px-6 py-3 sm:py-3.5 flex items-center gap-3 hover:bg-gray-50/60 transition-colors">
                         {/* Avatar */}
-                        <div className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold flex-shrink-0"
+                        <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center text-sm font-bold flex-shrink-0"
                           style={{ background: avatarBg, color: avatarColor }}>
                           {m.clienteName.charAt(0).toUpperCase()}
                         </div>
 
-                        {/* Name */}
+                        {/* Name + valor on mobile */}
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="text-sm font-medium text-gray-900 truncate">{m.clienteName}</p>
-                            <span className="flex items-center gap-1 text-xs text-gray-400">
-                              <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: dot }} />
-                              {label}
-                            </span>
+                          <div className="flex items-center justify-between gap-1">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate">{m.clienteName}</p>
+                              <span className="flex items-center gap-1 text-xs text-gray-400 flex-shrink-0">
+                                <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: dot }} />
+                                <span className="hidden xs:inline">{label}</span>
+                              </span>
+                            </div>
+                            {m.valor !== undefined && (
+                              <span className="text-xs font-semibold text-gray-700 flex-shrink-0 sm:hidden">{formatCurrency(m.valor)}</span>
+                            )}
                           </div>
                           <p className="text-xs text-gray-400 truncate mt-0.5">
                             {[m.phone, m.email].filter(Boolean).join(' · ') || '—'}
@@ -779,36 +828,36 @@ export default function Dashboard() {
                           </p>
                         </div>
 
-                        {/* Kommo */}
-                        <div className="hidden md:block text-xs text-gray-500 min-w-[150px]">
+                        {/* Kommo — md+ */}
+                        <div className="hidden md:block text-xs text-gray-500 min-w-[140px]">
                           {m.kommoContactName
                             ? <><p className="font-medium text-gray-700 truncate">{m.kommoContactName}</p>
                               {m.kommoLeadName && <p className="text-gray-400 truncate">Lead #{m.kommoLeadId}</p>}</>
                             : <span className="text-gray-300">—</span>}
                         </div>
 
-                        {/* Valor */}
-                        <div className="hidden sm:block text-sm font-semibold text-gray-700 min-w-[90px] text-right">
+                        {/* Valor — sm+ */}
+                        <div className="hidden sm:block text-sm font-semibold text-gray-700 min-w-[80px] text-right">
                           {formatCurrency(m.valor)}
                         </div>
 
-                        {/* Date */}
-                        <div className="hidden lg:block text-xs text-gray-400 min-w-[70px] text-right">
+                        {/* Date — lg+ */}
+                        <div className="hidden lg:block text-xs text-gray-400 min-w-[60px] text-right">
                           {formatDateShort(m.date)}
                         </div>
 
                         {/* Actions */}
-                        <div className="flex items-center gap-1 min-w-[110px] justify-end">
+                        <div className="flex items-center gap-1 flex-shrink-0">
                           {canRetryDirect && (
                             <button onClick={() => retryMatch(m.id)} disabled={isRetrying}
-                              className="text-xs px-3 py-1.5 rounded-lg font-medium transition-all disabled:opacity-40"
+                              className="text-xs px-2.5 py-1.5 rounded-lg font-medium transition-all disabled:opacity-40"
                               style={{ background: '#EEF2FF', color: '#6366f1' }}>
                               {isRetrying ? '...' : 'Reenviar'}
                             </button>
                           )}
                           {canEditPhone && !isEditingPhone && (
                             <button onClick={() => setEditPhone({ matchId: m.id, value: m.phone ?? '' })}
-                              className="text-xs px-3 py-1.5 rounded-lg font-medium transition-all border border-gray-200 text-gray-500 hover:bg-gray-50">
+                              className="text-xs px-2.5 py-1.5 rounded-lg font-medium transition-all border border-gray-200 text-gray-500 hover:bg-gray-50">
                               + Tel
                             </button>
                           )}
@@ -817,14 +866,14 @@ export default function Dashboard() {
                               <input type="text" value={editPhone.value} autoFocus
                                 onChange={e => setEditPhone({ matchId: m.id, value: e.target.value })}
                                 placeholder="13991740991"
-                                className="w-28 text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white"
+                                className="w-24 sm:w-28 text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white"
                                 onKeyDown={e => {
                                   if (e.key === 'Enter') retryMatch(m.id, editPhone.value);
                                   if (e.key === 'Escape') setEditPhone(null);
                                 }} />
                               <button onClick={() => retryMatch(m.id, editPhone.value)}
                                 disabled={isRetrying || !editPhone.value}
-                                className="text-xs px-2.5 py-1.5 rounded-lg font-semibold disabled:opacity-40"
+                                className="text-xs px-2 py-1.5 rounded-lg font-semibold disabled:opacity-40"
                                 style={{ background: '#AEFF6E', color: '#111' }}>
                                 {isRetrying ? '...' : 'OK'}
                               </button>
@@ -843,11 +892,11 @@ export default function Dashboard() {
 
         {/* ══ CRM TAB ══ */}
         {activeTab === 'crm' && (
-          <div className="mt-6">
-            <div className="mb-6 flex items-center justify-between">
+          <div className="mt-4 sm:mt-6">
+            <div className="mb-4 sm:mb-6 flex items-center justify-between">
               <div>
                 <p className="text-xs text-gray-400 uppercase tracking-widest font-medium mb-0.5">Kommo CRM</p>
-                <h1 className="text-[2rem] font-bold text-gray-900 leading-tight">Pipelines</h1>
+                <h1 className="text-2xl sm:text-[2rem] font-bold text-gray-900 leading-tight">Pipelines</h1>
               </div>
               <button onClick={() => { setCrmData(null); setLoadingCrm(false); }}
                 className="text-xs text-gray-500 border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50 transition-colors">
@@ -948,11 +997,11 @@ export default function Dashboard() {
 
         {/* ══ CHAT TAB ══ */}
         {activeTab === 'chat' && (
-          <div className="mt-6">
-            <div className="mb-6 flex items-center justify-between">
+          <div className="mt-4 sm:mt-6">
+            <div className="mb-4 sm:mb-6 flex items-center justify-between">
               <div>
                 <p className="text-xs text-gray-400 uppercase tracking-widest font-medium mb-0.5">Kommo</p>
-                <h1 className="text-[2rem] font-bold text-gray-900 leading-tight">Conversas ao Vivo</h1>
+                <h1 className="text-2xl sm:text-[2rem] font-bold text-gray-900 leading-tight">Conversas ao Vivo</h1>
               </div>
               <button onClick={() => { setChatData([]); setLoadingChat(false); }}
                 className="text-xs text-gray-500 border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50 transition-colors">
@@ -1023,7 +1072,7 @@ export default function Dashboard() {
 
         {/* ══ CONFIG TAB ══ */}
         {activeTab === 'config' && (
-          <div className="mt-6 max-w-lg">
+          <div className="mt-6 w-full sm:max-w-lg">
             <h1 className="text-2xl font-bold text-gray-900 mb-6">Configuração</h1>
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-6">
 
