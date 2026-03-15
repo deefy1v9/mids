@@ -1,3 +1,23 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+  --chart-background: #ffffff;
+  --chart-foreground: #111827;
+  --chart-foreground-muted: #6B7280;
+  --chart-label: #9CA3AF;
+  --chart-line-primary: #AEFF6E;
+  --chart-line-secondary: #6366f1;
+  --chart-crosshair: rgba(0,0,0,0.15);
+  --chart-grid: rgba(0,0,0,0.07);
+  --chart-indicator-color: #AEFF6E;
+  --chart-indicator-secondary-color: #6366f1;
+  --chart-marker-background: #ffffff;
+  --chart-marker-border: #E5E7EB;
+  --chart-marker-foreground: #111827;
+  --chart-marker-badge-background: #111827;
+  --chart-marker-badge-foreground: #ffffff;
+  --chart-segment-background: #AEFF6E;
+  --chart-segment-line: #AEFF6E;
+}

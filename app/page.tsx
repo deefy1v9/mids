@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
+import { AreaChart, Area, Grid, XAxis, YAxis, ChartTooltip } from '@/components/ui/area-chart';
 
 type MatchAction = 'won' | 'stage_moved' | 'not_found' | 'error';
 
@@ -221,21 +222,7 @@ export default function Dashboard() {
     return Object.entries(days);
   }, [matches]);
 
-  // Won per day last 7 days
-  const wonDaily = useMemo(() => {
-    const days: Record<string, number> = {};
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(); d.setDate(d.getDate() - i);
-      days[d.toISOString().split('T')[0]] = 0;
-    }
-    matches.filter(m => m.action === 'won').forEach(m => {
-      const day = m.date.split('T')[0];
-      if (day in days) days[day]++;
-    });
-    return Object.entries(days);
-  }, [matches]);
-
-  const selectedPipeline = pipelines.find(p => p.id === config.pipelineId);
+const selectedPipeline = pipelines.find(p => p.id === config.pipelineId);
   const availableStages = selectedPipeline
     ? selectedPipeline._embedded.statuses.filter(s => s.type !== 143)
     : [];
@@ -593,130 +580,19 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* ── Row 2: Charts ── */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4 mt-3 sm:mt-4">
-
-              {/* Bar chart: atividade diária */}
-              <div className="lg:col-span-2 bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                <div className="flex items-start justify-between mb-5">
+            {/* ── Row 2: Fechamentos ── */}
+            <div className="grid grid-cols-1 gap-3 sm:gap-4 mt-3 sm:mt-4">
+              <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+                <p className="text-xs text-gray-400 font-medium uppercase tracking-wide mb-3">Fechamentos</p>
+                <div className="flex items-center gap-6">
                   <div>
-                    <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Utilização — Atividade Diária</p>
-                    <div className="flex items-center gap-4 mt-1">
-                      <span className="text-xs text-gray-500">
-                        <b className="text-gray-800 text-lg">{successPct}%</b> taxa de sync
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        <b className="text-gray-800">{phonePct}%</b> com telefone
-                      </span>
-                    </div>
+                    <span className="text-4xl font-bold text-gray-900">{stats.won + stats.moved}</span>
+                    <p className="text-xs text-gray-400 mt-0.5">leads atualizados</p>
                   </div>
-                  <div className="flex gap-3 text-xs text-gray-400">
-                    <span className="flex items-center gap-1">
-                      <span className="w-2 h-2 rounded-sm inline-block" style={{ background: '#AEFF6E' }} />hoje
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <span className="w-2 h-2 rounded-sm inline-block bg-gray-200" />anteriores
-                    </span>
-                  </div>
-                </div>
-
-                {/* Bars */}
-                {(() => {
-                  const vals = dailyData.map(([, v]) => v);
-                  const max = Math.max(...vals, 1);
-                  const H = 96;
-                  return (
-                    <div>
-                      <div className="flex items-end gap-1.5" style={{ height: H }}>
-                        {dailyData.map(([day, v], i) => {
-                          const h = Math.max((v / max) * (H - 4), 4);
-                          const isToday = i === dailyData.length - 1;
-                          return (
-                            <div key={day} className="flex-1 flex flex-col items-center group relative">
-                              {v > 0 && (
-                                <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs px-1.5 py-0.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
-                                  {v} match{v > 1 ? 'es' : ''}
-                                </div>
-                              )}
-                              <div className="w-full rounded-t-lg transition-all duration-300"
-                                style={{ height: `${h}px`, background: isToday ? '#AEFF6E' : '#F3F4F6' }} />
-                            </div>
-                          );
-                        })}
-                      </div>
-                      <div className="flex mt-1.5">
-                        {dailyData.map(([day], i) => {
-                          const showLabel = i === 0 || i === 7 || i === dailyData.length - 1;
-                          const d = new Date(day + 'T12:00:00');
-                          return (
-                            <div key={day} className="flex-1 text-center text-xs text-gray-300">
-                              {showLabel ? `${d.getDate()}/${d.getMonth() + 1}` : ''}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })()}
-              </div>
-
-              {/* Card: Timely Closures */}
-              <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm flex flex-col">
-                <div className="flex items-start justify-between mb-4">
+                  <div className="w-px h-10 bg-gray-100" />
                   <div>
-                    <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Fechamentos</p>
-                    <div className="flex items-baseline gap-1 mt-1">
-                      <span className="text-2xl font-bold text-gray-900">{stats.won}</span>
-                      <span className="text-sm text-gray-400">ganhos</span>
-                    </div>
-                  </div>
-                  <span className="text-xs font-medium px-2.5 py-1 rounded-full"
-                    style={{ background: '#F0FDF4', color: '#16a34a' }}>
-                    {stats.won + stats.moved} atualizados
-                  </span>
-                </div>
-
-                {/* Mini bar chart */}
-                {(() => {
-                  const vals = wonDaily.map(([, v]) => v);
-                  const max = Math.max(...vals, 1);
-                  const H = 64;
-                  return (
-                    <div>
-                      <div className="flex items-end gap-1" style={{ height: H }}>
-                        {wonDaily.map(([day, v], i) => {
-                          const h = Math.max((v / max) * (H - 4), 4);
-                          const isToday = i === wonDaily.length - 1;
-                          return (
-                            <div key={day} className="flex-1 rounded-t-sm"
-                              style={{ height: `${h}px`, background: isToday ? '#AEFF6E' : '#F3F4F6' }} />
-                          );
-                        })}
-                      </div>
-                      <div className="flex mt-1">
-                        {wonDaily.map(([day]) => {
-                          const d = new Date(day + 'T12:00:00');
-                          return (
-                            <div key={day} className="flex-1 text-center text-xs text-gray-300">
-                              {d.getDate()}/{d.getMonth() + 1}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                <div className="mt-auto pt-4 border-t border-gray-100 grid grid-cols-2 gap-2 text-xs">
-                  <div className="bg-gray-50 rounded-xl p-3">
-                    <p className="text-gray-400 mb-0.5">Ganhos</p>
-                    <p className="text-lg font-bold text-gray-800">{stats.won}</p>
-                    <p className="text-gray-400">{successPct}% no prazo</p>
-                  </div>
-                  <div className="bg-gray-50 rounded-xl p-3">
-                    <p className="text-gray-400 mb-0.5">Pendentes</p>
-                    <p className="text-lg font-bold text-amber-500">{stats.notFound}</p>
-                    <p className="text-gray-400">{notFoundPct}% total</p>
+                    <span className="text-4xl font-bold" style={{ color: '#16a34a' }}>{stats.won}</span>
+                    <p className="text-xs text-gray-400 mt-0.5">ganhos</p>
                   </div>
                 </div>
               </div>
@@ -724,50 +600,33 @@ export default function Dashboard() {
 
             {/* ── Row 3: Daily Revenue Chart ── */}
             {!loadingAnalytics && analyticsData && analyticsData.dailySales.length > 0 && (
-              <div className="mt-4 bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                <div className="mb-5">
+              <div className="mt-3 sm:mt-4 bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+                <div className="mb-3">
                   <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Faturamento Diário — últimos 14 dias</p>
-                  <p className="text-sm text-gray-500 mt-1">
-                    <b className="text-gray-800">{formatCurrency(analyticsData.dailySales.reduce((s, d) => s + d.revenue, 0))}</b> no período
+                  <p className="text-sm font-semibold text-gray-800 mt-1">
+                    {formatCurrency(analyticsData.dailySales.reduce((s, d) => s + d.revenue, 0))}
+                    <span className="text-xs font-normal text-gray-400 ml-1">no período</span>
                   </p>
                 </div>
-                {(() => {
-                  const vals = analyticsData.dailySales.map(d => d.revenue);
-                  const maxV = Math.max(...vals, 1);
-                  const H = 96;
-                  return (
-                    <div>
-                      <div className="flex items-end gap-1.5" style={{ height: H }}>
-                        {analyticsData.dailySales.map((d, i) => {
-                          const h = Math.max((d.revenue / maxV) * (H - 4), 4);
-                          const isToday = i === analyticsData.dailySales.length - 1;
-                          return (
-                            <div key={d.date} className="flex-1 flex flex-col items-center group relative">
-                              {d.revenue > 0 && (
-                                <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs px-1.5 py-0.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
-                                  {formatCurrency(d.revenue)}
-                                </div>
-                              )}
-                              <div className="w-full rounded-t-lg transition-all duration-300"
-                                style={{ height: `${h}px`, background: isToday ? '#AEFF6E' : '#F3F4F6' }} />
-                            </div>
-                          );
-                        })}
-                      </div>
-                      <div className="flex mt-1.5">
-                        {analyticsData.dailySales.map((d, i) => {
-                          const showLabel = i === 0 || i === 6 || i === analyticsData.dailySales.length - 1;
-                          const dt = new Date(d.date + 'T12:00:00');
-                          return (
-                            <div key={d.date} className="flex-1 text-center text-xs text-gray-300">
-                              {showLabel ? `${dt.getDate()}/${dt.getMonth() + 1}` : ''}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })()}
+                <div style={{ height: 200 }}>
+                  <AreaChart
+                    data={analyticsData.dailySales as unknown as Record<string, unknown>[]}
+                    xAccessor={d => new Date((d.date as string) + 'T12:00:00')}
+                    margin={{ top: 10, right: 16, bottom: 36, left: 64 }}
+                  >
+                    <Grid horizontal />
+                    <Area dataKey="revenue" fill="#AEFF6E" stroke="#AEFF6E" strokeWidth={2} />
+                    <XAxis numTicks={4} />
+                    <YAxis formatValue={(v) => formatCurrency(v)} numTicks={4} />
+                    <ChartTooltip
+                      rows={(p) => [{
+                        color: '#AEFF6E',
+                        label: 'Faturamento',
+                        value: formatCurrency(p.revenue as number),
+                      }]}
+                    />
+                  </AreaChart>
+                </div>
               </div>
             )}
 
@@ -775,7 +634,7 @@ export default function Dashboard() {
             <div className="mt-3 sm:mt-4 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
               <div className="px-4 sm:px-6 py-4 border-b border-gray-100 flex items-center justify-between flex-wrap gap-2">
                 <div>
-                  <h2 className="text-sm font-semibold text-gray-900">Histórico de Matches</h2>
+                  <h2 className="text-sm font-semibold text-gray-900">Histórico de Vendas Tenfront</h2>
                   <p className="text-xs text-gray-400 mt-0.5">{matches.length} registros</p>
                 </div>
                 <div className="flex gap-1.5 flex-wrap">
