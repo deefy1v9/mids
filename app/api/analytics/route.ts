@@ -68,10 +68,33 @@ export async function GET() {
       return Math.round(avg / 60);
     };
 
+    // Meta Ads spend
+    const metaToken = process.env.META_ACCESS_TOKEN;
+    const metaAccountId = process.env.META_AD_ACCOUNT_ID;
+    const fetchMetaSpend = async (datePreset: string): Promise<number> => {
+      if (!metaToken || !metaAccountId) return 0;
+      try {
+        const { data } = await axios.get(
+          `https://graph.facebook.com/v19.0/${metaAccountId}/insights`,
+          { params: { fields: 'spend', date_preset: datePreset, access_token: metaToken }, validateStatus: () => true }
+        );
+        const spend = data?.data?.[0]?.spend;
+        return spend ? parseFloat(spend) : 0;
+      } catch {
+        return 0;
+      }
+    };
+
+    const [todaySpend, weekSpend, monthSpend] = await Promise.all([
+      fetchMetaSpend('today'),
+      fetchMetaSpend('last_7d'),
+      fetchMetaSpend('last_30d'),
+    ]);
+
     return NextResponse.json({
-      today: { ...aggregate(today), newChats: calcChats(dayTs), avgResponseMinutes: calcAvgResponse(dayTs) },
-      week: { ...aggregate(weekAgo), newChats: calcChats(weekTs), avgResponseMinutes: calcAvgResponse(weekTs) },
-      month: { ...aggregate(monthAgo), newChats: calcChats(monthTs), avgResponseMinutes: calcAvgResponse(monthTs) },
+      today: { ...aggregate(today), newChats: calcChats(dayTs), avgResponseMinutes: calcAvgResponse(dayTs), metaSpend: todaySpend },
+      week: { ...aggregate(weekAgo), newChats: calcChats(weekTs), avgResponseMinutes: calcAvgResponse(weekTs), metaSpend: weekSpend },
+      month: { ...aggregate(monthAgo), newChats: calcChats(monthTs), avgResponseMinutes: calcAvgResponse(monthTs), metaSpend: monthSpend },
       dailySales,
     });
   } catch (err: unknown) {

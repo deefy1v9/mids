@@ -46,7 +46,7 @@ interface KommoPipeline { id: number; name: string; _embedded: { statuses: Kommo
 interface SyncConfig { markAsWon: boolean; pipelineId?: number; stageId?: number; }
 interface SyncResult { total: number; matched: number; updated: number; notFound: number; errors: number; }
 
-interface AnalyticsPeriod { sales: number; revenue: number; newChats: number; avgResponseMinutes: number; }
+interface AnalyticsPeriod { sales: number; revenue: number; newChats: number; avgResponseMinutes: number; metaSpend: number; }
 interface AnalyticsData {
   today: AnalyticsPeriod; week: AnalyticsPeriod; month: AnalyticsPeriod;
   dailySales: { date: string; sales: number; revenue: number }[];
@@ -100,7 +100,7 @@ export default function Dashboard() {
   const [editPhone, setEditPhone] = useState<{ matchId: string; value: string } | null>(null);
   const [debugData, setDebugData] = useState<unknown>(null);
   const [showDebug, setShowDebug] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'analytics' | 'crm' | 'chat' | 'config'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'crm' | 'chat' | 'config'>('overview');
   const [crmData, setCrmData] = useState<{ pipelines: CrmPipeline[]; leads: CrmLead[] } | null>(null);
   const [loadingCrm, setLoadingCrm] = useState(false);
   const [chatData, setChatData] = useState<Talk[]>([]);
@@ -146,7 +146,7 @@ export default function Dashboard() {
   }, [activeTab, chatData, loadingChat]);
 
   useEffect(() => {
-    if (activeTab === 'analytics' && !analyticsData && !loadingAnalytics) {
+    if (activeTab === 'overview' && !analyticsData && !loadingAnalytics) {
       setLoadingAnalytics(true);
       fetch('/api/analytics').then(r => r.json())
         .then(d => setAnalyticsData(d))
@@ -260,7 +260,6 @@ export default function Dashboard() {
           <nav className="flex items-center gap-1">
             {([
               { key: 'overview', label: 'Visão Geral' },
-              { key: 'analytics', label: 'Análises' },
               { key: 'crm', label: 'CRM' },
               { key: 'chat', label: 'Chat' },
               { key: 'config', label: 'Configuração' },
@@ -553,7 +552,167 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* ── Row 3: Match Table ── */}
+            {/* ── Row 3: Analytics KPIs ── */}
+            <div className="mt-4">
+              <div className="flex items-center justify-between mb-3 flex-wrap gap-3">
+                <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Performance</p>
+                <div className="flex items-center gap-2">
+                  {loadingAnalytics && (
+                    <div className="w-4 h-4 border-2 border-gray-300 border-t-transparent rounded-full animate-spin" />
+                  )}
+                  <div className="flex items-center gap-1 bg-white border border-gray-100 rounded-xl p-1 shadow-sm">
+                    {(['today', 'week', 'month'] as const).map(p => (
+                      <button key={p} onClick={() => setAnalyticsPeriod(p)}
+                        className="px-4 py-1.5 rounded-lg text-sm font-medium transition-all"
+                        style={analyticsPeriod === p ? { background: '#111', color: '#fff' } : { color: '#9CA3AF' }}>
+                        {p === 'today' ? 'Hoje' : p === 'week' ? '7 dias' : '30 dias'}
+                      </button>
+                    ))}
+                  </div>
+                  {analyticsData && (
+                    <button onClick={() => { setAnalyticsData(null); setLoadingAnalytics(false); }}
+                      className="text-xs text-gray-500 border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50 transition-colors">
+                      ↺
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {!loadingAnalytics && analyticsData && (() => {
+                const p = analyticsData[analyticsPeriod];
+                return (
+                  <>
+                    <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+                      {/* Vendas */}
+                      <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+                        <div className="flex items-start justify-between mb-4">
+                          <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Vendas</p>
+                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm"
+                            style={{ background: '#F0FDF4' }}>🏆</div>
+                        </div>
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-4xl font-bold text-gray-900">{p.sales}</span>
+                          <span className="text-sm text-gray-400 ml-1">fechamentos</span>
+                        </div>
+                      </div>
+
+                      {/* Faturamento */}
+                      <div className="rounded-2xl p-5 border shadow-sm relative overflow-hidden"
+                        style={{ background: '#111827', borderColor: '#1f2937' }}>
+                        <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full opacity-30"
+                          style={{ background: '#AEFF6E', filter: 'blur(30px)' }} />
+                        <div className="relative">
+                          <div className="flex items-start justify-between mb-4">
+                            <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Faturamento</p>
+                            <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
+                              style={{ background: '#AEFF6E', color: '#111' }}>R$</div>
+                          </div>
+                          <p className="text-2xl font-bold text-white leading-tight">{formatCurrency(p.revenue)}</p>
+                        </div>
+                      </div>
+
+                      {/* Meta Ads */}
+                      <div className="rounded-2xl p-5 border shadow-sm relative overflow-hidden"
+                        style={{ background: '#1a1035', borderColor: '#2d1f5e' }}>
+                        <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full opacity-20"
+                          style={{ background: '#1877F2', filter: 'blur(30px)' }} />
+                        <div className="relative">
+                          <div className="flex items-start justify-between mb-4">
+                            <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Meta Ads</p>
+                            <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
+                              style={{ background: '#1877F2', color: '#fff' }}>f</div>
+                          </div>
+                          <p className="text-2xl font-bold text-white leading-tight">{formatCurrency(p.metaSpend)}</p>
+                          <p className="text-xs text-gray-500 mt-1">investido</p>
+                        </div>
+                      </div>
+
+                      {/* Chats novos */}
+                      <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+                        <div className="flex items-start justify-between mb-4">
+                          <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Chats Novos</p>
+                          <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-sm">💬</div>
+                        </div>
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-4xl font-bold text-gray-900">{p.newChats}</span>
+                          <span className="text-sm text-gray-400 ml-1">conversas</span>
+                        </div>
+                      </div>
+
+                      {/* Tempo médio resposta */}
+                      <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+                        <div className="flex items-start justify-between mb-4">
+                          <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Tempo Médio Resposta</p>
+                          <div className="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center text-sm">⏱</div>
+                        </div>
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-4xl font-bold text-gray-900">
+                            {p.avgResponseMinutes < 60 ? p.avgResponseMinutes : Math.round(p.avgResponseMinutes / 60)}
+                          </span>
+                          <span className="text-sm text-gray-400 ml-1">
+                            {p.avgResponseMinutes < 60 ? 'min' : 'h'}
+                          </span>
+                        </div>
+                        {p.avgResponseMinutes === 0 && (
+                          <p className="text-xs text-gray-300 mt-1">sem dados</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Daily revenue bar chart */}
+                    {analyticsData.dailySales.length > 0 && (
+                      <div className="mt-4 bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+                        <div className="mb-5">
+                          <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Faturamento Diário — últimos 14 dias</p>
+                          <p className="text-sm text-gray-500 mt-1">
+                            <b className="text-gray-800">{formatCurrency(analyticsData.dailySales.reduce((s, d) => s + d.revenue, 0))}</b> no período
+                          </p>
+                        </div>
+                        {(() => {
+                          const vals = analyticsData.dailySales.map(d => d.revenue);
+                          const maxV = Math.max(...vals, 1);
+                          const H = 96;
+                          return (
+                            <div>
+                              <div className="flex items-end gap-1.5" style={{ height: H }}>
+                                {analyticsData.dailySales.map((d, i) => {
+                                  const h = Math.max((d.revenue / maxV) * (H - 4), 4);
+                                  const isToday = i === analyticsData.dailySales.length - 1;
+                                  return (
+                                    <div key={d.date} className="flex-1 flex flex-col items-center group relative">
+                                      {d.revenue > 0 && (
+                                        <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs px-1.5 py-0.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
+                                          {formatCurrency(d.revenue)}
+                                        </div>
+                                      )}
+                                      <div className="w-full rounded-t-lg transition-all duration-300"
+                                        style={{ height: `${h}px`, background: isToday ? '#AEFF6E' : '#F3F4F6' }} />
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                              <div className="flex mt-1.5">
+                                {analyticsData.dailySales.map((d, i) => {
+                                  const showLabel = i === 0 || i === 6 || i === analyticsData.dailySales.length - 1;
+                                  const dt = new Date(d.date + 'T12:00:00');
+                                  return (
+                                    <div key={d.date} className="flex-1 text-center text-xs text-gray-300">
+                                      {showLabel ? `${dt.getDate()}/${dt.getMonth() + 1}` : ''}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+
+            {/* ── Row 4: Match Table ── */}
             <div className="mt-4 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between flex-wrap gap-3">
                 <div>
@@ -680,158 +839,6 @@ export default function Dashboard() {
               )}
             </div>
           </>
-        )}
-
-        {/* ══ ANALYTICS TAB ══ */}
-        {activeTab === 'analytics' && (
-          <div className="mt-6">
-            <div className="mb-6 flex items-center justify-between flex-wrap gap-4">
-              <div>
-                <p className="text-xs text-gray-400 uppercase tracking-widest font-medium mb-0.5">Performance</p>
-                <h1 className="text-[2rem] font-bold text-gray-900 leading-tight">Análises</h1>
-              </div>
-              <div className="flex items-center gap-1 bg-white border border-gray-100 rounded-xl p-1 shadow-sm">
-                {(['today', 'week', 'month'] as const).map(p => (
-                  <button key={p} onClick={() => setAnalyticsPeriod(p)}
-                    className="px-4 py-1.5 rounded-lg text-sm font-medium transition-all"
-                    style={analyticsPeriod === p ? { background: '#111', color: '#fff' } : { color: '#9CA3AF' }}>
-                    {p === 'today' ? 'Hoje' : p === 'week' ? '7 dias' : '30 dias'}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {loadingAnalytics && (
-              <div className="flex items-center justify-center py-24">
-                <div className="w-8 h-8 border-2 border-gray-300 border-t-transparent rounded-full animate-spin" />
-              </div>
-            )}
-
-            {!loadingAnalytics && analyticsData && (() => {
-              const p = analyticsData[analyticsPeriod];
-              return (
-                <>
-                  {/* KPI Cards */}
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-
-                    {/* Vendas */}
-                    <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                      <div className="flex items-start justify-between mb-4">
-                        <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Vendas</p>
-                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm"
-                          style={{ background: '#F0FDF4' }}>🏆</div>
-                      </div>
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-4xl font-bold text-gray-900">{p.sales}</span>
-                        <span className="text-sm text-gray-400 ml-1">fechamentos</span>
-                      </div>
-                    </div>
-
-                    {/* Faturamento */}
-                    <div className="rounded-2xl p-5 border shadow-sm relative overflow-hidden"
-                      style={{ background: '#111827', borderColor: '#1f2937' }}>
-                      <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full opacity-30"
-                        style={{ background: '#AEFF6E', filter: 'blur(30px)' }} />
-                      <div className="relative">
-                        <div className="flex items-start justify-between mb-4">
-                          <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Faturamento</p>
-                          <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
-                            style={{ background: '#AEFF6E', color: '#111' }}>R$</div>
-                        </div>
-                        <p className="text-2xl font-bold text-white leading-tight">{formatCurrency(p.revenue)}</p>
-                      </div>
-                    </div>
-
-                    {/* Chats novos */}
-                    <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                      <div className="flex items-start justify-between mb-4">
-                        <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Chats Novos</p>
-                        <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-sm">💬</div>
-                      </div>
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-4xl font-bold text-gray-900">{p.newChats}</span>
-                        <span className="text-sm text-gray-400 ml-1">conversas</span>
-                      </div>
-                    </div>
-
-                    {/* Tempo médio resposta */}
-                    <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                      <div className="flex items-start justify-between mb-4">
-                        <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Tempo Médio Resposta</p>
-                        <div className="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center text-sm">⏱</div>
-                      </div>
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-4xl font-bold text-gray-900">
-                          {p.avgResponseMinutes < 60 ? p.avgResponseMinutes : Math.round(p.avgResponseMinutes / 60)}
-                        </span>
-                        <span className="text-sm text-gray-400 ml-1">
-                          {p.avgResponseMinutes < 60 ? 'min' : 'h'}
-                        </span>
-                      </div>
-                      {p.avgResponseMinutes === 0 && (
-                        <p className="text-xs text-gray-300 mt-1">sem dados</p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Daily revenue bar chart */}
-                  {analyticsData.dailySales.length > 0 && (
-                    <div className="mt-4 bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                      <div className="flex items-start justify-between mb-5">
-                        <div>
-                          <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Faturamento Diário — últimos 14 dias</p>
-                          <p className="text-sm text-gray-500 mt-1">
-                            <b className="text-gray-800">{formatCurrency(analyticsData.dailySales.reduce((s, d) => s + d.revenue, 0))}</b> no período
-                          </p>
-                        </div>
-                        <button onClick={() => { setAnalyticsData(null); setLoadingAnalytics(false); }}
-                          className="text-xs text-gray-500 border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50 transition-colors">
-                          ↺ Atualizar
-                        </button>
-                      </div>
-                      {(() => {
-                        const vals = analyticsData.dailySales.map(d => d.revenue);
-                        const maxV = Math.max(...vals, 1);
-                        const H = 96;
-                        return (
-                          <div>
-                            <div className="flex items-end gap-1.5" style={{ height: H }}>
-                              {analyticsData.dailySales.map((d, i) => {
-                                const h = Math.max((d.revenue / maxV) * (H - 4), 4);
-                                const isToday = i === analyticsData.dailySales.length - 1;
-                                return (
-                                  <div key={d.date} className="flex-1 flex flex-col items-center group relative">
-                                    {d.revenue > 0 && (
-                                      <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs px-1.5 py-0.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
-                                        {formatCurrency(d.revenue)}
-                                      </div>
-                                    )}
-                                    <div className="w-full rounded-t-lg transition-all duration-300"
-                                      style={{ height: `${h}px`, background: isToday ? '#AEFF6E' : '#F3F4F6' }} />
-                                  </div>
-                                );
-                              })}
-                            </div>
-                            <div className="flex mt-1.5">
-                              {analyticsData.dailySales.map((d, i) => {
-                                const showLabel = i === 0 || i === 6 || i === analyticsData.dailySales.length - 1;
-                                const dt = new Date(d.date + 'T12:00:00');
-                                return (
-                                  <div key={d.date} className="flex-1 text-center text-xs text-gray-300">
-                                    {showLabel ? `${dt.getDate()}/${dt.getMonth() + 1}` : ''}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  )}
-                </>
-              );
-            })()}
-          </div>
         )}
 
         {/* ══ CRM TAB ══ */}
