@@ -133,7 +133,7 @@ export default function Dashboard() {
   }, [fetchAll]);
 
   useEffect(() => {
-    if (activeTab === 'crm' && !crmData && !loadingCrm) {
+    if ((activeTab === 'crm' || activeTab === 'overview') && !crmData && !loadingCrm) {
       setLoadingCrm(true);
       fetch('/api/crm').then(r => r.json())
         .then(d => setCrmData(d))
@@ -604,6 +604,112 @@ const selectedPipeline = pipelines.find(p => p.id === config.pipelineId);
               </div>
             </div>
 
+            {/* ── Funil de Distribuição ── */}
+            {(() => {
+              const distPipeline = crmData?.pipelines.find(p =>
+                p.name.toLowerCase().includes('distribuição') || p.name.toLowerCase().includes('distribuicao')
+              );
+              if (!distPipeline && !loadingCrm) return null;
+              if (loadingCrm && !crmData) return (
+                <div className="mt-3 sm:mt-4 bg-white rounded-2xl p-5 border border-gray-100 shadow-sm animate-pulse">
+                  <div className="h-3 bg-gray-100 rounded w-40 mb-4" />
+                  <div className="flex gap-3 overflow-hidden">
+                    {[...Array(5)].map((_, i) => (
+                      <div key={i} className="flex-shrink-0 w-40 h-24 bg-gray-100 rounded-xl" />
+                    ))}
+                  </div>
+                </div>
+              );
+              if (!distPipeline) return null;
+
+              const allStatuses = distPipeline._embedded.statuses;
+              const activeStages = allStatuses.filter((s: CrmStatus) => s.type !== 142 && s.type !== 143);
+              const wonStages = allStatuses.filter((s: CrmStatus) => s.type === 142);
+              const pipelineLeads = crmData!.leads.filter((l: CrmLead) => l.pipeline_id === distPipeline.id);
+              const wonLeads = pipelineLeads.filter((l: CrmLead) => wonStages.some((s: CrmStatus) => s.id === l.status_id));
+
+              const stageColors = ['#AEFF6E', '#6366f1', '#f59e0b', '#06b6d4', '#f43f5e', '#a78bfa', '#34d399', '#fb923c'];
+
+              return (
+                <div className="mt-3 sm:mt-4 bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Funil de Distribuição</p>
+                      <p className="text-sm font-semibold text-gray-800 mt-0.5">
+                        {pipelineLeads.length} leads
+                        {wonLeads.length > 0 && (
+                          <span className="text-xs font-normal text-green-600 ml-2">· {wonLeads.length} vendidos</span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-3 overflow-x-auto pb-2">
+                    {activeStages.map((stage: CrmStatus, si: number) => {
+                      const stageLeads = pipelineLeads.filter((l: CrmLead) => l.status_id === stage.id);
+                      const color = stage.color && stage.color !== '#FFFFFF' ? stage.color : stageColors[si % stageColors.length];
+                      return (
+                        <div key={stage.id} className="flex-shrink-0 w-44 rounded-xl border border-gray-100 overflow-hidden" style={{ minHeight: 90 }}>
+                          <div className="px-3 py-2 flex items-center justify-between" style={{ background: color + '22', borderBottom: `2px solid ${color}` }}>
+                            <p className="text-xs font-semibold text-gray-700 truncate max-w-[110px]">{stage.name}</p>
+                            <span className="text-xs font-bold ml-1 flex-shrink-0" style={{ color }}>{stageLeads.length}</span>
+                          </div>
+                          <div className="p-2 space-y-1.5 bg-white">
+                            {stageLeads.length === 0 ? (
+                              <p className="text-xs text-gray-300 text-center py-2">—</p>
+                            ) : (
+                              <>
+                                {stageLeads.slice(0, 4).map((lead: CrmLead) => {
+                                  const mc = lead._embedded?.contacts?.find((c: { id: number; name: string; is_main: boolean }) => c.is_main) ?? lead._embedded?.contacts?.[0];
+                                  const name = mc?.name ?? lead.name ?? `#${lead.id}`;
+                                  return (
+                                    <div key={lead.id} className="bg-gray-50 rounded-lg px-2 py-1.5 border border-gray-100">
+                                      <p className="text-xs font-medium text-gray-700 truncate">{name}</p>
+                                      {lead.price > 0 && (
+                                        <p className="text-xs text-green-600 font-semibold">{formatCurrency(lead.price)}</p>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                                {stageLeads.length > 4 && (
+                                  <p className="text-xs text-gray-400 text-center">+{stageLeads.length - 4} mais</p>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {/* Vendidos column */}
+                    {wonLeads.length > 0 && (
+                      <div className="flex-shrink-0 w-44 rounded-xl border border-gray-100 overflow-hidden" style={{ minHeight: 90 }}>
+                        <div className="px-3 py-2 flex items-center justify-between" style={{ background: '#16a34a22', borderBottom: '2px solid #16a34a' }}>
+                          <p className="text-xs font-semibold text-gray-700">Vendidos</p>
+                          <span className="text-xs font-bold ml-1 flex-shrink-0" style={{ color: '#16a34a' }}>{wonLeads.length}</span>
+                        </div>
+                        <div className="p-2 space-y-1.5 bg-white">
+                          {wonLeads.slice(0, 4).map((lead: CrmLead) => {
+                            const mc = lead._embedded?.contacts?.find((c: { id: number; name: string; is_main: boolean }) => c.is_main) ?? lead._embedded?.contacts?.[0];
+                            const name = mc?.name ?? lead.name ?? `#${lead.id}`;
+                            return (
+                              <div key={lead.id} className="bg-green-50 rounded-lg px-2 py-1.5 border border-green-100">
+                                <p className="text-xs font-medium text-gray-700 truncate">{name}</p>
+                                {lead.price > 0 && (
+                                  <p className="text-xs text-green-600 font-semibold">{formatCurrency(lead.price)}</p>
+                                )}
+                              </div>
+                            );
+                          })}
+                          {wonLeads.length > 4 && (
+                            <p className="text-xs text-gray-400 text-center">+{wonLeads.length - 4} mais</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* ── Row 3: Daily Revenue Chart ── */}
             {!loadingAnalytics && analyticsData && analyticsData.dailySales.length > 0 && (
               <div className="mt-3 sm:mt-4 bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
@@ -797,125 +903,54 @@ const selectedPipeline = pipelines.find(p => p.id === config.pipelineId);
                     <p className="text-gray-400 text-sm">Nenhum pipeline encontrado</p>
                   </div>
                 ) : (
-                  <div className="space-y-8">
+                  <div className="space-y-6">
                     {crmData.pipelines.map(pipeline => {
                       const allStatuses = pipeline._embedded.statuses;
                       const wonStages = allStatuses.filter((s: CrmStatus) => s.type === 142);
                       const activeStages = allStatuses.filter((s: CrmStatus) => s.type !== 142 && s.type !== 143);
                       const pipelineLeads = crmData.leads.filter((l: CrmLead) => l.pipeline_id === pipeline.id);
-
                       const totalLeads = pipelineLeads.length;
-                      const activeLeads = pipelineLeads.filter((l: CrmLead) => activeStages.some((s: CrmStatus) => s.id === l.status_id)).length;
                       const wonLeads = pipelineLeads.filter((l: CrmLead) => wonStages.some((s: CrmStatus) => s.id === l.status_id)).length;
                       const wonValue = pipelineLeads
                         .filter((l: CrmLead) => wonStages.some((s: CrmStatus) => s.id === l.status_id))
                         .reduce((acc: number, l: CrmLead) => acc + (l.price ?? 0), 0);
 
-                      // Funnel SVG geometry
-                      const FW = 300; const FH = 68; const FGAP = 6; const SHRINK = 28;
-                      const funnelLevels = [
-                        { label: 'Leads Novos', count: totalLeads, pct: 100, color: '#86efac' },
-                        { label: 'Em Tratativa', count: activeLeads, pct: totalLeads > 0 ? Math.round(activeLeads / totalLeads * 100) : 0, color: '#4ade80' },
-                        { label: 'Leads Ganhos', count: wonLeads, pct: totalLeads > 0 ? Math.round(wonLeads / totalLeads * 100) : 0, color: '#22c55e' },
-                      ];
-                      const svgH = funnelLevels.length * FH + (funnelLevels.length - 1) * FGAP;
-
                       return (
-                        <div key={pipeline.id}>
-                          {/* Pipeline title */}
-                          <div className="flex items-center justify-between mb-3">
+                        <div key={pipeline.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                          <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
                             <div>
-                              <h2 className="text-base font-semibold text-gray-900">{pipeline.name}</h2>
+                              <h2 className="text-sm font-semibold text-gray-900">{pipeline.name}</h2>
                               <p className="text-xs text-gray-400 mt-0.5">
                                 {totalLeads} leads · {wonLeads} ganhos{wonValue > 0 ? ` · ${formatCurrency(wonValue)}` : ''}
                               </p>
                             </div>
                           </div>
-
-                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                            {/* ── Funil de Vendas ── */}
-                            <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                              <p className="text-xs text-gray-400 font-medium uppercase tracking-wide mb-4">Funil de Vendas</p>
-                              <svg viewBox={`0 0 ${FW} ${svgH}`} className="w-full max-w-xs mx-auto block">
-                                {funnelLevels.map((level, i) => {
-                                  const lx = i * SHRINK;
-                                  const rx = FW - lx;
-                                  const lxN = lx + SHRINK;
-                                  const rxN = FW - lxN;
-                                  const y = i * (FH + FGAP);
-                                  const cy = y + FH / 2;
-                                  return (
-                                    <g key={i}>
-                                      <polygon points={`${lx},${y} ${rx},${y} ${rxN},${y + FH} ${lxN},${y + FH}`} fill={level.color} />
-                                      <text x={FW / 2} y={cy - 7} textAnchor="middle" fill="white" fontSize="11" fontWeight="600" style={{ fontFamily: 'system-ui' }}>
-                                        {level.label.toUpperCase()}
-                                      </text>
-                                      <text x={FW / 2} y={cy + 10} textAnchor="middle" fill="white" fontSize="16" fontWeight="700" style={{ fontFamily: 'system-ui' }}>
-                                        {level.count}
-                                      </text>
-                                      <text x={FW / 2} y={cy + 24} textAnchor="middle" fill="white" fontSize="10" style={{ fontFamily: 'system-ui', opacity: 0.85 }}>
-                                        {level.pct}%
-                                      </text>
-                                    </g>
-                                  );
-                                })}
-                              </svg>
-                            </div>
-
-                            {/* ── Pipeline Vertical ── */}
-                            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                              <div className="px-5 py-3.5 border-b border-gray-100">
-                                <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Distribuição por Etapa</p>
-                              </div>
-                              <div className="divide-y divide-gray-50">
-                                {activeStages.map((stage: CrmStatus, si: number) => {
-                                  const stageLeads = pipelineLeads.filter((l: CrmLead) => l.status_id === stage.id);
-                                  const stageTotal = stageLeads.reduce((acc: number, l: CrmLead) => acc + (l.price ?? 0), 0);
-                                  const stageColor = stage.color || ['#AEFF6E', '#6366f1', '#f59e0b', '#06b6d4', '#f43f5e'][si % 5];
-                                  const stagePct = totalLeads > 0 ? Math.round(stageLeads.length / totalLeads * 100) : 0;
-                                  return (
-                                    <div key={stage.id} className="px-5 py-3">
-                                      <div className="flex items-center gap-2 mb-1.5">
-                                        <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: stageColor }} />
-                                        <p className="text-sm font-medium text-gray-700 flex-1 truncate">{stage.name}</p>
-                                        <span className="text-xs font-semibold text-gray-600">{stageLeads.length}</span>
-                                        {stageTotal > 0 && (
-                                          <span className="text-xs text-gray-400 ml-1">{formatCurrency(stageTotal)}</span>
-                                        )}
-                                      </div>
-                                      <div className="flex items-center gap-2">
-                                        <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                                          <div className="h-full rounded-full transition-all duration-700"
-                                            style={{ width: `${stagePct}%`, background: stageColor }} />
-                                        </div>
-                                        <span className="text-xs text-gray-300 w-8 text-right">{stagePct}%</span>
-                                      </div>
-                                      {/* Lead chips */}
-                                      {stageLeads.length > 0 && (
-                                        <div className="flex gap-1.5 mt-2 overflow-x-auto pb-0.5">
-                                          {stageLeads.slice(0, 12).map((lead: CrmLead) => {
-                                            const mc = lead._embedded?.contacts?.find((c: { id: number; name: string; is_main: boolean }) => c.is_main) ?? lead._embedded?.contacts?.[0];
-                                            return (
-                                              <div key={lead.id} className="flex-shrink-0 bg-gray-50 rounded-lg px-2.5 py-1.5 border border-gray-100">
-                                                <p className="text-xs font-medium text-gray-700 whitespace-nowrap max-w-[120px] truncate">
-                                                  {mc?.name ?? lead.name ?? `#${lead.id}`}
-                                                </p>
-                                                {lead.price > 0 && (
-                                                  <p className="text-xs text-green-600 font-semibold mt-0.5">{formatCurrency(lead.price)}</p>
-                                                )}
-                                              </div>
-                                            );
-                                          })}
-                                          {stageLeads.length > 12 && (
-                                            <div className="flex-shrink-0 flex items-center px-2 text-xs text-gray-400">+{stageLeads.length - 12}</div>
-                                          )}
-                                        </div>
-                                      )}
+                          <div className="divide-y divide-gray-50">
+                            {activeStages.map((stage: CrmStatus, si: number) => {
+                              const stageLeads = pipelineLeads.filter((l: CrmLead) => l.status_id === stage.id);
+                              const stageTotal = stageLeads.reduce((acc: number, l: CrmLead) => acc + (l.price ?? 0), 0);
+                              const stageColor = stage.color && stage.color !== '#FFFFFF' ? stage.color : ['#AEFF6E', '#6366f1', '#f59e0b', '#06b6d4', '#f43f5e'][si % 5];
+                              const stagePct = totalLeads > 0 ? Math.round(stageLeads.length / totalLeads * 100) : 0;
+                              return (
+                                <div key={stage.id} className="px-5 py-3">
+                                  <div className="flex items-center gap-2 mb-1.5">
+                                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: stageColor }} />
+                                    <p className="text-sm font-medium text-gray-700 flex-1 truncate">{stage.name}</p>
+                                    <span className="text-xs font-semibold text-gray-600">{stageLeads.length}</span>
+                                    {stageTotal > 0 && (
+                                      <span className="text-xs text-gray-400 ml-1">{formatCurrency(stageTotal)}</span>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                      <div className="h-full rounded-full transition-all duration-700"
+                                        style={{ width: `${stagePct}%`, background: stageColor }} />
                                     </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
+                                    <span className="text-xs text-gray-300 w-8 text-right">{stagePct}%</span>
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
                       );
