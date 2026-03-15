@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { AreaChart, Area, Grid, XAxis, YAxis, ChartTooltip } from '@/components/ui/area-chart';
+import { FunnelChart } from '@/components/ui/funnel-chart';
 
 type MatchAction = 'won' | 'stage_moved' | 'not_found' | 'error';
 
@@ -50,7 +51,7 @@ interface SyncResult { total: number; matched: number; updated: number; notFound
 interface AnalyticsPeriod { sales: number; revenue: number; newChats: number; avgResponseMinutes: number; metaSpend: number; }
 interface AnalyticsData {
   today: AnalyticsPeriod; week: AnalyticsPeriod; month: AnalyticsPeriod;
-  dailySales: { date: string; sales: number; revenue: number }[];
+  dailySales: { date: string; sales: number; revenue: number; newChats: number; metaSpend: number }[];
   metaError?: string | null;
 }
 
@@ -620,11 +621,7 @@ const selectedPipeline = pipelines.find(p => p.id === config.pipelineId);
               if (loadingCrm && !crmData) return (
                 <div className="mt-3 sm:mt-4 bg-white rounded-2xl p-5 border border-gray-100 shadow-sm animate-pulse">
                   <div className="h-3 bg-gray-100 rounded w-40 mb-4" />
-                  <div className="flex gap-3 overflow-hidden">
-                    {[...Array(5)].map((_, i) => (
-                      <div key={i} className="flex-shrink-0 w-40 h-24 bg-gray-100 rounded-xl" />
-                    ))}
-                  </div>
+                  <div className="h-48 bg-gray-100 rounded-xl" />
                 </div>
               );
               if (!distPipeline) return null;
@@ -635,7 +632,22 @@ const selectedPipeline = pipelines.find(p => p.id === config.pipelineId);
               const pipelineLeads = crmData!.leads.filter((l: CrmLead) => l.pipeline_id === distPipeline.id);
               const wonLeads = pipelineLeads.filter((l: CrmLead) => wonStages.some((s: CrmStatus) => s.id === l.status_id));
 
-              const stageColors = ['#AEFF6E', '#6366f1', '#f59e0b', '#06b6d4', '#f43f5e', '#a78bfa', '#34d399', '#fb923c'];
+              const stageColors = ['#AEFF6E', '#6ee7b7', '#6366f1', '#f59e0b', '#06b6d4', '#f43f5e', '#a78bfa', '#fb923c'];
+
+              // Build funnel data: active stages + won
+              const funnelStages = activeStages.map((stage: CrmStatus, si: number) => {
+                const count = pipelineLeads.filter((l: CrmLead) => l.status_id === stage.id).length;
+                return { label: stage.name, value: Math.max(count, 0), displayValue: String(count), color: stage.color && stage.color !== '#FFFFFF' ? stage.color : stageColors[si % stageColors.length] };
+              });
+              if (wonLeads.length > 0) {
+                funnelStages.push({ label: 'Vendidos', value: wonLeads.length, displayValue: String(wonLeads.length), color: '#16a34a' });
+              }
+
+              // Ensure first stage has max value for proper funnel shape
+              const maxVal = Math.max(...funnelStages.map(s => s.value), 1);
+              const funnelData = funnelStages.map(s => ({ ...s, value: Math.max(s.value, 1), displayValue: String(s.value) }));
+              // Normalize so first element has the max value for correct funnel shape
+              const normalizedFunnel = [{ ...funnelData[0]!, value: maxVal }, ...funnelData.slice(1)];
 
               return (
                 <div className="mt-3 sm:mt-4 bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
@@ -650,99 +662,69 @@ const selectedPipeline = pipelines.find(p => p.id === config.pipelineId);
                       </p>
                     </div>
                   </div>
-                  <div className="flex gap-3 overflow-x-auto pb-2">
-                    {activeStages.map((stage: CrmStatus, si: number) => {
-                      const stageLeads = pipelineLeads.filter((l: CrmLead) => l.status_id === stage.id);
-                      const color = stage.color && stage.color !== '#FFFFFF' ? stage.color : stageColors[si % stageColors.length];
-                      return (
-                        <div key={stage.id} className="flex-shrink-0 w-44 rounded-xl border border-gray-100 overflow-hidden" style={{ minHeight: 90 }}>
-                          <div className="px-3 py-2 flex items-center justify-between" style={{ background: color + '22', borderBottom: `2px solid ${color}` }}>
-                            <p className="text-xs font-semibold text-gray-700 truncate max-w-[110px]">{stage.name}</p>
-                            <span className="text-xs font-bold ml-1 flex-shrink-0" style={{ color }}>{stageLeads.length}</span>
-                          </div>
-                          <div className="p-2 space-y-1.5 bg-white">
-                            {stageLeads.length === 0 ? (
-                              <p className="text-xs text-gray-300 text-center py-2">—</p>
-                            ) : (
-                              <>
-                                {stageLeads.slice(0, 4).map((lead: CrmLead) => {
-                                  const mc = lead._embedded?.contacts?.find((c: { id: number; name: string; is_main: boolean }) => c.is_main) ?? lead._embedded?.contacts?.[0];
-                                  const name = mc?.name ?? lead.name ?? `#${lead.id}`;
-                                  return (
-                                    <div key={lead.id} className="bg-gray-50 rounded-lg px-2 py-1.5 border border-gray-100">
-                                      <p className="text-xs font-medium text-gray-700 truncate">{name}</p>
-                                      {lead.price > 0 && (
-                                        <p className="text-xs text-green-600 font-semibold">{formatCurrency(lead.price)}</p>
-                                      )}
-                                    </div>
-                                  );
-                                })}
-                                {stageLeads.length > 4 && (
-                                  <p className="text-xs text-gray-400 text-center">+{stageLeads.length - 4} mais</p>
-                                )}
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                    {/* Vendidos column */}
-                    {wonLeads.length > 0 && (
-                      <div className="flex-shrink-0 w-44 rounded-xl border border-gray-100 overflow-hidden" style={{ minHeight: 90 }}>
-                        <div className="px-3 py-2 flex items-center justify-between" style={{ background: '#16a34a22', borderBottom: '2px solid #16a34a' }}>
-                          <p className="text-xs font-semibold text-gray-700">Vendidos</p>
-                          <span className="text-xs font-bold ml-1 flex-shrink-0" style={{ color: '#16a34a' }}>{wonLeads.length}</span>
-                        </div>
-                        <div className="p-2 space-y-1.5 bg-white">
-                          {wonLeads.slice(0, 4).map((lead: CrmLead) => {
-                            const mc = lead._embedded?.contacts?.find((c: { id: number; name: string; is_main: boolean }) => c.is_main) ?? lead._embedded?.contacts?.[0];
-                            const name = mc?.name ?? lead.name ?? `#${lead.id}`;
-                            return (
-                              <div key={lead.id} className="bg-green-50 rounded-lg px-2 py-1.5 border border-green-100">
-                                <p className="text-xs font-medium text-gray-700 truncate">{name}</p>
-                                {lead.price > 0 && (
-                                  <p className="text-xs text-green-600 font-semibold">{formatCurrency(lead.price)}</p>
-                                )}
-                              </div>
-                            );
-                          })}
-                          {wonLeads.length > 4 && (
-                            <p className="text-xs text-gray-400 text-center">+{wonLeads.length - 4} mais</p>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                  {normalizedFunnel.length > 0 ? (
+                    <div style={{ '--chart-1': '#AEFF6E', '--color-muted': 'transparent', '--chart-grid': 'rgba(0,0,0,0.06)', '--chart-foreground': '#111827', '--chart-foreground-muted': '#6B7280' } as React.CSSProperties}>
+                      <FunnelChart
+                        data={normalizedFunnel}
+                        orientation="horizontal"
+                        layers={3}
+                        gap={6}
+                        showPercentage={false}
+                        showValues={true}
+                        showLabels={true}
+                        edges="curved"
+                        labelLayout="spread"
+                        formatValue={(v) => String(v)}
+                      />
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-300 text-center py-6">Nenhum lead neste funil</p>
+                  )}
                 </div>
               );
             })()}
 
-            {/* ── Row 3: Daily Revenue Chart ── */}
+            {/* ── Row 3: Multi-series Chart ── */}
             {!loadingAnalytics && analyticsData && (analyticsData.dailySales?.length ?? 0) > 0 && (
               <div className="mt-3 sm:mt-4 bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                <div className="mb-3">
-                  <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Faturamento Diário — últimos 14 dias</p>
-                  <p className="text-sm font-semibold text-gray-800 mt-1">
-                    {formatCurrency(analyticsData.dailySales.reduce((s, d) => s + d.revenue, 0))}
-                    <span className="text-xs font-normal text-gray-400 ml-1">no período</span>
-                  </p>
+                <div className="mb-3 flex items-start justify-between flex-wrap gap-2">
+                  <div>
+                    <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Meta Ads · Leads Ganhos · Leads Novos — últimos 14 dias</p>
+                    <p className="text-sm font-semibold text-gray-800 mt-1">
+                      {formatCurrency(analyticsData.dailySales.reduce((s, d) => s + (d.metaSpend ?? 0), 0))}
+                      <span className="text-xs font-normal text-gray-400 ml-1">investido</span>
+                      <span className="mx-2 text-gray-200">·</span>
+                      <span style={{ color: '#AEFF6E' }}>{analyticsData.dailySales.reduce((s, d) => s + d.sales, 0)}</span>
+                      <span className="text-xs font-normal text-gray-400 ml-1">ganhos</span>
+                      <span className="mx-2 text-gray-200">·</span>
+                      <span style={{ color: '#6366f1' }}>{analyticsData.dailySales.reduce((s, d) => s + (d.newChats ?? 0), 0)}</span>
+                      <span className="text-xs font-normal text-gray-400 ml-1">novos</span>
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-gray-500">
+                    <span className="flex items-center gap-1"><span className="w-3 h-1 rounded-full inline-block" style={{ background: '#1877F2' }} />Meta</span>
+                    <span className="flex items-center gap-1"><span className="w-3 h-1 rounded-full inline-block" style={{ background: '#AEFF6E' }} />Ganhos</span>
+                    <span className="flex items-center gap-1"><span className="w-3 h-1 rounded-full inline-block" style={{ background: '#6366f1' }} />Novos</span>
+                  </div>
                 </div>
-                <div style={{ height: 200 }}>
+                <div style={{ height: 220 }}>
                   <AreaChart
                     data={analyticsData.dailySales as unknown as Record<string, unknown>[]}
                     xAccessor={d => new Date((d.date as string) + 'T12:00:00')}
-                    margin={{ top: 10, right: 16, bottom: 36, left: 64 }}
+                    margin={{ top: 10, right: 16, bottom: 36, left: 36 }}
                   >
                     <Grid horizontal />
-                    <Area dataKey="revenue" fill="#AEFF6E" stroke="#AEFF6E" strokeWidth={2} />
+                    <Area dataKey="metaSpend" fill="#1877F2" stroke="#1877F2" strokeWidth={2} />
+                    <Area dataKey="sales" fill="#AEFF6E" stroke="#AEFF6E" strokeWidth={2} />
+                    <Area dataKey="newChats" fill="#6366f1" stroke="#6366f1" strokeWidth={2} />
                     <XAxis numTicks={4} />
-                    <YAxis formatValue={(v) => formatCurrency(v)} numTicks={4} />
+                    <YAxis numTicks={4} />
                     <ChartTooltip
-                      rows={(p) => [{
-                        color: '#AEFF6E',
-                        label: 'Faturamento',
-                        value: formatCurrency(p.revenue as number),
-                      }]}
+                      rows={(p) => [
+                        { color: '#1877F2', label: 'Meta Ads', value: formatCurrency(p.metaSpend as number) },
+                        { color: '#AEFF6E', label: 'Leads ganhos', value: String(p.sales) },
+                        { color: '#6366f1', label: 'Leads novos', value: String(p.newChats) },
+                      ]}
                     />
                   </AreaChart>
                 </div>

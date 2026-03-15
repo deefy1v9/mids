@@ -31,7 +31,7 @@ export async function GET() {
       };
     };
 
-    const dailySales = [...rows].reverse().slice(-14).map(r => ({
+    const dailySalesBase = [...rows].reverse().slice(-14).map(r => ({
       date: String(r.day).substring(0, 10),
       sales: Number(r.sales),
       revenue: Number(r.revenue),
@@ -81,9 +81,17 @@ export async function GET() {
       return Math.round(avg / 60);
     };
 
+    // Daily new chats — group talks by BRT date
+    const dailyChatsMap: Record<string, number> = {};
+    for (const t of talks) {
+      const d = new Date((t.created_at - 3 * 3600) * 1000).toISOString().split('T')[0];
+      dailyChatsMap[d] = (dailyChatsMap[d] ?? 0) + 1;
+    }
+
     // Meta Ads spend
     const metaToken = process.env.META_ACCESS_TOKEN;
     const metaAccountId = process.env.META_AD_ACCOUNT_ID;
+
     const fetchMetaSpend = async (datePreset: string): Promise<{ spend: number; error?: string }> => {
       if (!metaToken || !metaAccountId) return { spend: 0, error: 'missing credentials' };
       try {
@@ -98,6 +106,30 @@ export async function GET() {
         return { spend: 0, error: String(e) };
       }
     };
+
+    // Daily Meta spend (last 14 days)
+    let dailyMetaMap: Record<string, number> = {};
+    try {
+      if (metaToken && metaAccountId) {
+        const { data: metaDaily } = await axios.get(
+          `https://graph.facebook.com/v19.0/${metaAccountId}/insights`,
+          { params: { fields: 'spend', date_preset: 'last_14d', time_increment: 1, access_token: metaToken }, validateStatus: () => true }
+        );
+        if (Array.isArray(metaDaily?.data)) {
+          for (const entry of metaDaily.data as { spend?: string; date_start?: string }[]) {
+            if (entry.date_start) dailyMetaMap[entry.date_start] = parseFloat(entry.spend ?? '0');
+          }
+        }
+      }
+    } catch {
+      // leave dailyMetaMap empty
+    }
+
+    const dailySales = dailySalesBase.map(r => ({
+      ...r,
+      newChats: dailyChatsMap[r.date] ?? 0,
+      metaSpend: dailyMetaMap[r.date] ?? 0,
+    }));
 
     const [todayMeta, weekMeta, monthMeta] = await Promise.all([
       fetchMetaSpend('today'),
