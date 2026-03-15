@@ -15,6 +15,7 @@ services:
       TENFRONT_CONSUMER_KEY: ${TENFRONT_CONSUMER_KEY}
       TENFRONT_CONSUMER_SECRET: ${TENFRONT_CONSUMER_SECRET}
       CRON_SCHEDULE: ${CRON_SCHEDULE:-0 8 * * *}
+      APP_SECRET: ${APP_SECRET}
       NODE_ENV: production
     deploy:
       replicas: 1
@@ -28,14 +29,10 @@ services:
       labels:
         - traefik.enable=true
         - traefik.docker.network=traefik-public
-        # HTTP — acesso direto pelo IP (sem domínio)
-        - traefik.http.routers.mids.rule=PathPrefix(`/`)
-        - traefik.http.routers.mids.entrypoints=web
         - traefik.http.services.mids.loadbalancer.server.port=3000
-        # HTTPS com domínio — descomente quando tiver domínio:
-        # - traefik.http.routers.mids-secure.rule=Host(`seudominio.com.br`)
-        # - traefik.http.routers.mids-secure.entrypoints=websecure
-        # - traefik.http.routers.mids-secure.tls.certresolver=letsencrypt
+        - traefik.http.routers.mids-secure.rule=Host(`kommo.meuiphonedossonhos.com`)
+        - traefik.http.routers.mids-secure.entrypoints=websecure
+        - traefik.http.routers.mids-secure.tls.certresolver=letsencrypt
 
   database:
     image: postgres:16-alpine
