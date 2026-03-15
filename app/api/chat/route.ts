@@ -11,13 +11,13 @@ export async function GET() {
 
   try {
     const { data } = await axios.get(`${base}/talks`, {
-      params: { limit: 50, with: 'contact' },
+      params: { limit: 50, with: 'contact,last_message' },
       headers,
       validateStatus: () => true,
     });
 
     const talks = data?._embedded?.talks ?? [];
-    return NextResponse.json({ talks, raw: data });
+    return NextResponse.json({ talks, subdomain, raw: data });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     return NextResponse.json({ error: message }, { status: 500 });

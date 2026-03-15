@@ -24,6 +24,7 @@ interface Talk {
   created_at: number;
   updated_at: number;
   source_uid?: string;
+  last_message?: { text?: string; created_at?: number };
   _embedded?: { contact?: TalkContact };
 }
 
@@ -108,6 +109,7 @@ export default function Dashboard() {
   const [crmData, setCrmData] = useState<{ pipelines: CrmPipeline[]; leads: CrmLead[] } | null>(null);
   const [loadingCrm, setLoadingCrm] = useState(false);
   const [chatData, setChatData] = useState<Talk[]>([]);
+  const [chatSubdomain, setChatSubdomain] = useState('');
   const [loadingChat, setLoadingChat] = useState(false);
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(() => {
     try {
@@ -155,7 +157,7 @@ export default function Dashboard() {
     if (activeTab === 'chat' && chatData.length === 0 && !loadingChat) {
       setLoadingChat(true);
       fetch('/api/chat').then(r => r.json())
-        .then(d => setChatData(d?.talks ?? []))
+        .then(d => { setChatData(d?.talks ?? []); if (d?.subdomain) setChatSubdomain(d.subdomain); })
         .catch(() => { })
         .finally(() => setLoadingChat(false));
     }
@@ -628,53 +630,48 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* ── Funil de Distribuição ── */}
+            {/* ── Funil de Conversão (independente do pipeline) ── */}
             {(() => {
-              if (loadingCrm && !crmData) return (
-                <div className="mt-3 sm:mt-4 bg-white rounded-2xl p-5 border border-gray-100 shadow-sm animate-pulse">
-                  <div className="h-3 bg-gray-100 rounded w-40 mb-4" />
-                  <div className="h-48 bg-gray-100 rounded-xl" />
-                </div>
-              );
+              // Chats Novos — do analytics (período selecionado)
+              const newChats = analyticsData?.[analyticsPeriod]?.newChats ?? 0;
 
-              const distPipeline = crmData?.pipelines.find(p =>
-                p.name.toLowerCase().includes('distribuição') || p.name.toLowerCase().includes('distribuicao')
-              );
-
-              let normalizedFunnel: { label: string; value: number; displayValue: string; color: string }[];
-              let totalLeads = 0;
-              let wonCount = 0;
-              const isMock = !distPipeline;
-
-              if (distPipeline) {
-                const allStatuses = distPipeline._embedded.statuses;
-                const activeStages = allStatuses.filter((s: CrmStatus) => s.type !== 142 && s.type !== 143);
-                const wonStages = allStatuses.filter((s: CrmStatus) => s.type === 142);
-                const pipelineLeads = crmData!.leads.filter((l: CrmLead) => l.pipeline_id === distPipeline.id);
-                const wonLeads = pipelineLeads.filter((l: CrmLead) => wonStages.some((s: CrmStatus) => s.id === l.status_id));
-                totalLeads = pipelineLeads.length;
-                wonCount = wonLeads.length;
-                const funnelStages = activeStages.map((stage: CrmStatus) => {
-                  const count = pipelineLeads.filter((l: CrmLead) => l.status_id === stage.id).length;
-                  return { label: stage.name, value: Math.max(count, 1), displayValue: String(count), color: '#2563eb' };
-                });
-                if (wonLeads.length > 0) funnelStages.push({ label: 'Vendidos', value: wonLeads.length, displayValue: String(wonLeads.length), color: '#2563eb' });
-                const maxVal = Math.max(...funnelStages.map(s => s.value), 1);
-                normalizedFunnel = [{ ...funnelStages[0]!, value: maxVal }, ...funnelStages.slice(1)];
-              } else {
-                // fallback mock
-                normalizedFunnel = mockFunnelData;
-                totalLeads = mockFunnelData[0]?.value ?? 0;
-                wonCount = mockFunnelData[mockFunnelData.length - 1]?.value ?? 0;
+              // Leads em Tratativa — todos os leads ativos (não won=142, não lost=143) de TODOS os pipelines
+              let activeLeads = 0;
+              if (crmData) {
+                const closedIds = new Set(
+                  crmData.pipelines.flatMap(p => p._embedded.statuses)
+                    .filter((s: CrmStatus) => s.type === 142 || s.type === 143)
+                    .map((s: CrmStatus) => s.id)
+                );
+                activeLeads = crmData.leads.filter((l: CrmLead) => !closedIds.has(l.status_id)).length;
               }
+
+              // Vendas — matches ganhos no TenFront
+              const sales = stats.won;
+
+              const hasData = newChats > 0 || activeLeads > 0 || sales > 0;
+              const isMock = !hasData;
+
+              const rawFunnel = hasData
+                ? [
+                    { label: 'Chats Novos', value: Math.max(newChats, 1), displayValue: String(newChats), color: '#2563eb' },
+                    { label: 'Em Tratativa', value: Math.max(activeLeads, 1), displayValue: String(activeLeads), color: '#2563eb' },
+                    { label: 'Vendas', value: Math.max(sales, 1), displayValue: String(sales), color: '#2563eb' },
+                  ]
+                : mockFunnelData;
+
+              const maxVal = Math.max(...rawFunnel.map(d => d.value));
+              const normalizedFunnel = [{ ...rawFunnel[0]!, value: maxVal }, ...rawFunnel.slice(1)];
 
               return (
                 <div className="mt-3 sm:mt-4 bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
                   <div className="flex items-center justify-between mb-4">
                     <div>
-                      <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Funil de Distribuição</p>
+                      <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Funil de Conversão</p>
                       <p className="text-sm font-semibold text-gray-800 mt-0.5">
-                        {isMock ? <span className="text-gray-300 text-xs font-normal">dados de exemplo</span> : <>{totalLeads} leads{wonCount > 0 && <span className="text-xs font-normal text-green-600 ml-2">· {wonCount} vendidos</span>}</>}
+                        {isMock
+                          ? <span className="text-gray-300 text-xs font-normal">dados de exemplo</span>
+                          : <>{newChats} chats{sales > 0 && <span className="text-xs font-normal text-green-600 ml-2">· {sales} vendidos</span>}</>}
                       </p>
                     </div>
                   </div>
@@ -895,7 +892,7 @@ export default function Dashboard() {
             <div className="mb-4 sm:mb-6 flex items-center justify-between">
               <div>
                 <p className="text-xs text-gray-400 uppercase tracking-widest font-medium mb-0.5">Kommo</p>
-                <h1 className="text-2xl sm:text-[2rem] font-bold text-gray-900 leading-tight">Conversas ao Vivo</h1>
+                <h1 className="text-2xl sm:text-[2rem] font-bold text-gray-900 leading-tight">Inbox</h1>
               </div>
               <button onClick={() => { setChatData([]); setLoadingChat(false); }}
                 className="text-xs text-gray-500 border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50 transition-colors">
@@ -911,7 +908,7 @@ export default function Dashboard() {
 
             {!loadingChat && chatData.length === 0 && (
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm py-20 text-center">
-                <div className="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-3 text-3xl">💬</div>
+                <div className="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-3 text-2xl">💬</div>
                 <p className="text-gray-400 text-sm font-medium">Nenhuma conversa encontrada</p>
                 <p className="text-gray-300 text-xs mt-1">Verifique se o módulo de Chat está ativo no Kommo</p>
               </div>
@@ -919,44 +916,56 @@ export default function Dashboard() {
 
             {!loadingChat && chatData.length > 0 && (
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-100">
+                {/* Header */}
+                <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between">
                   <h2 className="text-sm font-semibold text-gray-900">Conversas recentes</h2>
-                  <p className="text-xs text-gray-400 mt-0.5">{chatData.length} conversas</p>
+                  <span className="text-xs font-medium px-2 py-0.5 rounded-full"
+                    style={{ background: '#EDE9FE', color: '#7C3AED' }}>{chatData.length}</span>
                 </div>
-                <div className="divide-y divide-gray-50">
+                {/* List */}
+                <div>
                   {chatData.map(talk => {
                     const contact = talk._embedded?.contact;
-                    const name = contact?.name ?? `Talk #${talk.id}`;
+                    const name = contact?.name ?? `Lead #${talk.id}`;
                     const initial = name.charAt(0).toUpperCase();
-                    const updatedAt = new Date(talk.updated_at * 1000);
-                    const isToday = updatedAt.toDateString() === new Date().toDateString();
+                    const msgTs = talk.last_message?.created_at ?? talk.updated_at;
+                    const msgAt = new Date(msgTs * 1000);
+                    const isToday = msgAt.toDateString() === new Date().toDateString();
                     const timeStr = isToday
-                      ? updatedAt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-                      : updatedAt.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+                      ? msgAt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+                      : msgAt.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+                    const preview = talk.last_message?.text?.trim() || 'Conversa ativa';
+                    const kommoUrl = chatSubdomain
+                      ? `https://${chatSubdomain}.kommo.com/chats?talkId=${talk.id}`
+                      : undefined;
 
-                    return (
-                      <div key={talk.id}
-                        className="px-6 py-4 flex items-center gap-4 hover:bg-gray-50/60 transition-colors cursor-pointer">
+                    const card = (
+                      <div className="px-4 py-3.5 flex items-start gap-3 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0">
                         {/* Avatar */}
-                        <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-sm font-bold flex-shrink-0"
+                        <div className="w-11 h-11 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 mt-0.5"
                           style={{ background: '#EDE9FE', color: '#7C3AED' }}>
                           {initial}
                         </div>
-                        {/* Info */}
+                        {/* Content */}
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center justify-between gap-2 mb-0.5">
                             <p className="text-sm font-semibold text-gray-900 truncate">{name}</p>
-                            <span className="text-xs text-gray-400 flex-shrink-0">{timeStr}</span>
+                            <span className="text-[11px] text-gray-400 flex-shrink-0">{timeStr}</span>
                           </div>
-                          <p className="text-xs text-gray-400 truncate mt-0.5">
-                            {talk.source_uid ? `Canal: ${talk.source_uid}` : 'Conversa ativa'}
-                          </p>
+                          <p className="text-xs text-gray-500 truncate leading-relaxed">{preview}</p>
+                          {talk.source_uid && (
+                            <span className="inline-block mt-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                              style={{ background: '#F0FDF4', color: '#16a34a' }}>
+                              {talk.source_uid}
+                            </span>
+                          )}
                         </div>
-                        {/* Status dot */}
-                        <div className="w-2 h-2 rounded-full flex-shrink-0"
-                          style={{ background: '#AEFF6E', boxShadow: '0 0 6px #AEFF6E' }} />
                       </div>
                     );
+
+                    return kommoUrl
+                      ? <a key={talk.id} href={kommoUrl} target="_blank" rel="noopener noreferrer" className="block">{card}</a>
+                      : <div key={talk.id}>{card}</div>;
                   })}
                 </div>
               </div>
