@@ -679,9 +679,9 @@ export default function Dashboard() {
 
               const rawFunnel = hasData
                 ? [
-                  { label: 'Chats Novos', value: Math.max(newChats, 1), displayValue: String(newChats), color: '#1eff00ff' },
-                  { label: 'Em Tratativa', value: Math.max(activeLeads, 1), displayValue: String(activeLeads), color: '#1eff00ff' },
-                  { label: 'Vendas', value: Math.max(sales, 1), displayValue: String(sales), color: '#1eff00ff' },
+                  { label: 'Chats Novos', value: Math.max(newChats, 1), displayValue: String(newChats), color: '#1eff00ff', labelStyle: { textShadow: '1px 1px 2px black' } },
+                  { label: 'Em Tratativa', value: Math.max(activeLeads, 1), displayValue: String(activeLeads), color: '#1eff00ff', labelStyle: { textShadow: '1px 1px 2px black' } },
+                  { label: 'Vendas', value: Math.max(sales, 1), displayValue: String(sales), color: '#1eff00ff', labelStyle: { textShadow: '1px 1px 2px black' } },
                 ]
                 : mockFunnelData;
 

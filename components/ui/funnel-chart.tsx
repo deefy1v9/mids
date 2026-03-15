@@ -63,6 +63,7 @@ export interface FunnelStage {
   displayValue?: string;
   color?: string;
   gradient?: FunnelGradientStop[];
+  labelStyle?: CSSProperties;
 }
 export interface FunnelChartProps {
   data: FunnelStage[];
@@ -217,7 +218,7 @@ function SegmentLabel({ stage, pct, isHorizontal, showValues, showPercentage, sh
   const display = stage.displayValue ?? formatValue(stage.value);
   const valueEl = showValues && <span className="whitespace-nowrap font-semibold text-foreground text-sm">{display}</span>;
   const pctEl = showPercentage && <span className="rounded-full bg-foreground px-3 py-1 font-bold text-background text-xs shadow-sm">{formatPercentage(pct)}</span>;
-  const labelEl = showLabels && <span className="whitespace-nowrap font-medium text-muted-foreground text-xs">{stage.label}</span>;
+  const labelEl = showLabels && <span className="whitespace-nowrap font-medium text-muted-foreground text-xs" style={stage.labelStyle}>{stage.label}</span>;
 
   if (layout === "spread") {
     return (
