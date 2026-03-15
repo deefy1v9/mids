@@ -16,6 +16,8 @@ services:
       TENFRONT_CONSUMER_SECRET: ${TENFRONT_CONSUMER_SECRET}
       CRON_SCHEDULE: ${CRON_SCHEDULE:-0 8 * * *}
       APP_SECRET: ${APP_SECRET}
+      META_ACCESS_TOKEN: ${META_ACCESS_TOKEN}
+      META_AD_ACCOUNT_ID: ${META_AD_ACCOUNT_ID}
       NODE_ENV: production
     deploy:
       replicas: 1

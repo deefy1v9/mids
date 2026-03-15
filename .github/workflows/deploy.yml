@@ -43,6 +43,8 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           source: docker-compose.app.yml
           target: /opt/mids/
+          timeout: 60s
+          command_timeout: 10m
 
       - name: Deploy no servidor via SSH
         uses: appleboy/ssh-action@v1.0.3
@@ -50,6 +52,7 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: root
           key: ${{ secrets.SERVER_SSH_KEY }}
+          connect_timeout: 60s
           script: |
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             docker pull ${{ env.IMAGE_NAME }}:latest
