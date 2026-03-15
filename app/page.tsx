@@ -107,7 +107,12 @@ export default function Dashboard() {
   const [loadingCrm, setLoadingCrm] = useState(false);
   const [chatData, setChatData] = useState<Talk[]>([]);
   const [loadingChat, setLoadingChat] = useState(false);
-  const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(() => {
+    try {
+      const raw = typeof window !== 'undefined' ? localStorage.getItem('mids_analytics') : null;
+      return raw ? (JSON.parse(raw) as AnalyticsData) : null;
+    } catch { return null; }
+  });
   const [analyticsPeriod, setAnalyticsPeriod] = useState<'today' | 'week' | 'month'>('today');
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
 
@@ -151,7 +156,10 @@ export default function Dashboard() {
     if (activeTab === 'overview' && !analyticsData && !loadingAnalytics) {
       setLoadingAnalytics(true);
       fetch('/api/analytics').then(r => r.json())
-        .then(d => setAnalyticsData(d))
+        .then(d => {
+          setAnalyticsData(d);
+          try { localStorage.setItem('mids_analytics', JSON.stringify(d)); } catch { /* storage full or private mode */ }
+        })
         .catch(() => { })
         .finally(() => setLoadingAnalytics(false));
     }
@@ -376,7 +384,7 @@ const selectedPipeline = pipelines.find(p => p.id === config.pipelineId);
                     ))}
                   </div>
                   {analyticsData && (
-                    <button onClick={() => { setAnalyticsData(null); setLoadingAnalytics(false); }}
+                    <button onClick={() => { try { localStorage.removeItem('mids_analytics'); } catch {} setAnalyticsData(null); setLoadingAnalytics(false); }}
                       className="text-xs text-gray-500 border border-gray-200 rounded-lg px-2.5 py-1.5 hover:bg-gray-50 transition-colors">
                       ↺
                     </button>
