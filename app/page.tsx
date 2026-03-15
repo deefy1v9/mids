@@ -457,10 +457,8 @@ const selectedPipeline = pipelines.find(p => p.id === config.pipelineId);
                           <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Chats Novos</p>
                           <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-sm">💬</div>
                         </div>
-                        <div className="flex items-baseline gap-1">
-                          <span className="text-4xl font-bold text-gray-900">{p.newChats}</span>
-                          <span className="text-sm text-gray-400 ml-1">conversas</span>
-                        </div>
+                        <span className="text-4xl font-bold text-gray-900">{p.newChats}</span>
+                        <p className="text-sm text-gray-400 mt-0.5">conversas</p>
                       </div>
 
                       {/* Tempo médio resposta */}
@@ -516,7 +514,7 @@ const selectedPipeline = pipelines.find(p => p.id === config.pipelineId);
               {/* Card: Leads Sincronizados */}
               <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
                 <div className="flex items-start justify-between mb-2">
-                  <div>
+                  <div className="min-w-0 mr-2">
                     <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Leads Sincronizados</p>
                     <div className="flex items-baseline gap-1 mt-2">
                       <span className="text-4xl font-bold text-gray-900">{stats.won + stats.moved}</span>
@@ -524,7 +522,7 @@ const selectedPipeline = pipelines.find(p => p.id === config.pipelineId);
                     <p className="text-xs text-gray-400 mt-1">{stats.won} ganhos · {stats.moved} movidos</p>
                   </div>
                   <div className="relative flex-shrink-0">
-                    <CircleProgress pct={successPct} size={72} stroke={7} color="#AEFF6E" />
+                    <CircleProgress pct={successPct} size={56} stroke={6} color="#AEFF6E" />
                     <div className="absolute inset-0 flex items-center justify-center">
                       <span className="text-xs font-bold text-gray-800">{successPct}%</span>
                     </div>
