@@ -238,7 +238,27 @@ export default function Dashboard() {
     return Object.entries(days);
   }, [matches]);
 
-const selectedPipeline = pipelines.find(p => p.id === config.pipelineId);
+  // Mock data for chart/funnel when real data is absent
+  const mockDailySales = useMemo(() => {
+    const base = [820, 0, 1540, 980, 2100, 1650, 0, 3200, 2750, 1900, 4100, 3600, 2800, 5200];
+    const baseMeta = [45, 45, 62, 58, 71, 68, 68, 95, 88, 74, 112, 105, 89, 130];
+    const baseSales = [1, 0, 2, 1, 3, 2, 0, 4, 3, 2, 5, 4, 3, 6];
+    const baseChats = [8, 6, 12, 9, 15, 11, 7, 18, 16, 13, 22, 19, 17, 25];
+    return Array.from({ length: 14 }, (_, i) => {
+      const d = new Date(); d.setDate(d.getDate() - (13 - i));
+      return { date: d.toISOString().split('T')[0], revenue: base[i] ?? 0, metaSpend: baseMeta[i] ?? 0, sales: baseSales[i] ?? 0, newChats: baseChats[i] ?? 0 };
+    });
+  }, []);
+
+  const mockFunnelData = [
+    { label: 'Novo Lead', value: 120, displayValue: '120', color: '#6366f1' },
+    { label: 'Qualificado', value: 74, displayValue: '74', color: '#AEFF6E' },
+    { label: 'Proposta', value: 38, displayValue: '38', color: '#f59e0b' },
+    { label: 'Negociação', value: 21, displayValue: '21', color: '#06b6d4' },
+    { label: 'Vendido', value: 12, displayValue: '12', color: '#16a34a' },
+  ];
+
+  const selectedPipeline = pipelines.find(p => p.id === config.pipelineId);
   const availableStages = selectedPipeline
     ? selectedPipeline._embedded.statuses.filter(s => s.type !== 143)
     : [];
@@ -614,40 +634,44 @@ const selectedPipeline = pipelines.find(p => p.id === config.pipelineId);
 
             {/* ── Funil de Distribuição ── */}
             {(() => {
-              const distPipeline = crmData?.pipelines.find(p =>
-                p.name.toLowerCase().includes('distribuição') || p.name.toLowerCase().includes('distribuicao')
-              );
-              if (!distPipeline && !loadingCrm) return null;
               if (loadingCrm && !crmData) return (
                 <div className="mt-3 sm:mt-4 bg-white rounded-2xl p-5 border border-gray-100 shadow-sm animate-pulse">
                   <div className="h-3 bg-gray-100 rounded w-40 mb-4" />
                   <div className="h-48 bg-gray-100 rounded-xl" />
                 </div>
               );
-              if (!distPipeline) return null;
 
-              const allStatuses = distPipeline._embedded.statuses;
-              const activeStages = allStatuses.filter((s: CrmStatus) => s.type !== 142 && s.type !== 143);
-              const wonStages = allStatuses.filter((s: CrmStatus) => s.type === 142);
-              const pipelineLeads = crmData!.leads.filter((l: CrmLead) => l.pipeline_id === distPipeline.id);
-              const wonLeads = pipelineLeads.filter((l: CrmLead) => wonStages.some((s: CrmStatus) => s.id === l.status_id));
+              const distPipeline = crmData?.pipelines.find(p =>
+                p.name.toLowerCase().includes('distribuição') || p.name.toLowerCase().includes('distribuicao')
+              );
 
-              const stageColors = ['#AEFF6E', '#6ee7b7', '#6366f1', '#f59e0b', '#06b6d4', '#f43f5e', '#a78bfa', '#fb923c'];
+              let normalizedFunnel: { label: string; value: number; displayValue: string; color: string }[];
+              let totalLeads = 0;
+              let wonCount = 0;
+              const isMock = !distPipeline;
 
-              // Build funnel data: active stages + won
-              const funnelStages = activeStages.map((stage: CrmStatus, si: number) => {
-                const count = pipelineLeads.filter((l: CrmLead) => l.status_id === stage.id).length;
-                return { label: stage.name, value: Math.max(count, 0), displayValue: String(count), color: stage.color && stage.color !== '#FFFFFF' ? stage.color : stageColors[si % stageColors.length] };
-              });
-              if (wonLeads.length > 0) {
-                funnelStages.push({ label: 'Vendidos', value: wonLeads.length, displayValue: String(wonLeads.length), color: '#16a34a' });
+              if (distPipeline) {
+                const allStatuses = distPipeline._embedded.statuses;
+                const activeStages = allStatuses.filter((s: CrmStatus) => s.type !== 142 && s.type !== 143);
+                const wonStages = allStatuses.filter((s: CrmStatus) => s.type === 142);
+                const pipelineLeads = crmData!.leads.filter((l: CrmLead) => l.pipeline_id === distPipeline.id);
+                const wonLeads = pipelineLeads.filter((l: CrmLead) => wonStages.some((s: CrmStatus) => s.id === l.status_id));
+                totalLeads = pipelineLeads.length;
+                wonCount = wonLeads.length;
+                const stageColors = ['#AEFF6E', '#6ee7b7', '#6366f1', '#f59e0b', '#06b6d4', '#f43f5e', '#a78bfa', '#fb923c'];
+                const funnelStages = activeStages.map((stage: CrmStatus, si: number) => {
+                  const count = pipelineLeads.filter((l: CrmLead) => l.status_id === stage.id).length;
+                  return { label: stage.name, value: Math.max(count, 1), displayValue: String(count), color: stage.color && stage.color !== '#FFFFFF' ? stage.color : stageColors[si % stageColors.length] };
+                });
+                if (wonLeads.length > 0) funnelStages.push({ label: 'Vendidos', value: wonLeads.length, displayValue: String(wonLeads.length), color: '#16a34a' });
+                const maxVal = Math.max(...funnelStages.map(s => s.value), 1);
+                normalizedFunnel = [{ ...funnelStages[0]!, value: maxVal }, ...funnelStages.slice(1)];
+              } else {
+                // fallback mock
+                normalizedFunnel = mockFunnelData;
+                totalLeads = mockFunnelData[0]?.value ?? 0;
+                wonCount = mockFunnelData[mockFunnelData.length - 1]?.value ?? 0;
               }
-
-              // Ensure first stage has max value for proper funnel shape
-              const maxVal = Math.max(...funnelStages.map(s => s.value), 1);
-              const funnelData = funnelStages.map(s => ({ ...s, value: Math.max(s.value, 1), displayValue: String(s.value) }));
-              // Normalize so first element has the max value for correct funnel shape
-              const normalizedFunnel = [{ ...funnelData[0]!, value: maxVal }, ...funnelData.slice(1)];
 
               return (
                 <div className="mt-3 sm:mt-4 bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
@@ -655,81 +679,84 @@ const selectedPipeline = pipelines.find(p => p.id === config.pipelineId);
                     <div>
                       <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Funil de Distribuição</p>
                       <p className="text-sm font-semibold text-gray-800 mt-0.5">
-                        {pipelineLeads.length} leads
-                        {wonLeads.length > 0 && (
-                          <span className="text-xs font-normal text-green-600 ml-2">· {wonLeads.length} vendidos</span>
-                        )}
+                        {isMock ? <span className="text-gray-300 text-xs font-normal">dados de exemplo</span> : <>{totalLeads} leads{wonCount > 0 && <span className="text-xs font-normal text-green-600 ml-2">· {wonCount} vendidos</span>}</>}
                       </p>
                     </div>
                   </div>
-                  {normalizedFunnel.length > 0 ? (
-                    <div style={{ '--chart-1': '#AEFF6E', '--color-muted': 'transparent', '--chart-grid': 'rgba(0,0,0,0.06)', '--chart-foreground': '#111827', '--chart-foreground-muted': '#6B7280' } as React.CSSProperties}>
-                      <FunnelChart
-                        data={normalizedFunnel}
-                        orientation="horizontal"
-                        layers={3}
-                        gap={6}
-                        showPercentage={false}
-                        showValues={true}
-                        showLabels={true}
-                        edges="curved"
-                        labelLayout="spread"
-                        formatValue={(v) => String(v)}
-                      />
-                    </div>
-                  ) : (
-                    <p className="text-xs text-gray-300 text-center py-6">Nenhum lead neste funil</p>
-                  )}
+                  <div style={{ '--chart-1': '#AEFF6E', '--color-muted': 'transparent', '--chart-grid': 'rgba(0,0,0,0.06)', '--chart-foreground': '#111827', '--chart-foreground-muted': '#6B7280' } as React.CSSProperties}>
+                    <FunnelChart
+                      data={normalizedFunnel}
+                      orientation="horizontal"
+                      layers={3}
+                      gap={6}
+                      showPercentage={false}
+                      showValues={true}
+                      showLabels={true}
+                      edges="curved"
+                      labelLayout="spread"
+                      formatValue={(v) => String(v)}
+                    />
+                  </div>
                 </div>
               );
             })()}
 
             {/* ── Row 3: Multi-series Chart ── */}
-            {!loadingAnalytics && analyticsData && (analyticsData.dailySales?.length ?? 0) > 0 && (
-              <div className="mt-3 sm:mt-4 bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                <div className="mb-3 flex items-start justify-between flex-wrap gap-2">
-                  <div>
-                    <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Meta Ads · Leads Ganhos · Leads Novos — últimos 14 dias</p>
-                    <p className="text-sm font-semibold text-gray-800 mt-1">
-                      {formatCurrency(analyticsData.dailySales.reduce((s, d) => s + (d.metaSpend ?? 0), 0))}
-                      <span className="text-xs font-normal text-gray-400 ml-1">investido</span>
-                      <span className="mx-2 text-gray-200">·</span>
-                      <span style={{ color: '#AEFF6E' }}>{analyticsData.dailySales.reduce((s, d) => s + d.sales, 0)}</span>
-                      <span className="text-xs font-normal text-gray-400 ml-1">ganhos</span>
-                      <span className="mx-2 text-gray-200">·</span>
-                      <span style={{ color: '#6366f1' }}>{analyticsData.dailySales.reduce((s, d) => s + (d.newChats ?? 0), 0)}</span>
-                      <span className="text-xs font-normal text-gray-400 ml-1">novos</span>
-                    </p>
+            {!loadingAnalytics && (() => {
+              const realData = analyticsData?.dailySales ?? [];
+              const hasReal = realData.length > 0 && realData.some(d => d.sales > 0 || d.newChats > 0 || d.metaSpend > 0);
+              const chartData = hasReal ? realData : mockDailySales;
+              const isMock = !hasReal;
+              return (
+                <div className="mt-3 sm:mt-4 bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+                  <div className="mb-3 flex items-start justify-between flex-wrap gap-2">
+                    <div>
+                      <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Meta Ads · Leads Ganhos · Leads Novos — últimos 14 dias</p>
+                      {isMock ? (
+                        <p className="text-xs text-gray-300 mt-1">dados de exemplo</p>
+                      ) : (
+                        <p className="text-sm font-semibold text-gray-800 mt-1">
+                          {formatCurrency(chartData.reduce((s, d) => s + (d.metaSpend ?? 0), 0))}
+                          <span className="text-xs font-normal text-gray-400 ml-1">investido</span>
+                          <span className="mx-2 text-gray-200">·</span>
+                          <span style={{ color: '#AEFF6E' }}>{chartData.reduce((s, d) => s + d.sales, 0)}</span>
+                          <span className="text-xs font-normal text-gray-400 ml-1">ganhos</span>
+                          <span className="mx-2 text-gray-200">·</span>
+                          <span style={{ color: '#6366f1' }}>{chartData.reduce((s, d) => s + (d.newChats ?? 0), 0)}</span>
+                          <span className="text-xs font-normal text-gray-400 ml-1">novos</span>
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-gray-500">
+                      <span className="flex items-center gap-1"><span className="w-3 h-1 rounded-full inline-block" style={{ background: '#1877F2' }} />Meta</span>
+                      <span className="flex items-center gap-1"><span className="w-3 h-1 rounded-full inline-block" style={{ background: '#AEFF6E' }} />Ganhos</span>
+                      <span className="flex items-center gap-1"><span className="w-3 h-1 rounded-full inline-block" style={{ background: '#6366f1' }} />Novos</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3 text-xs text-gray-500">
-                    <span className="flex items-center gap-1"><span className="w-3 h-1 rounded-full inline-block" style={{ background: '#1877F2' }} />Meta</span>
-                    <span className="flex items-center gap-1"><span className="w-3 h-1 rounded-full inline-block" style={{ background: '#AEFF6E' }} />Ganhos</span>
-                    <span className="flex items-center gap-1"><span className="w-3 h-1 rounded-full inline-block" style={{ background: '#6366f1' }} />Novos</span>
+                  <div style={{ height: 220 }}>
+                    <AreaChart
+                      data={chartData as unknown as Record<string, unknown>[]}
+                      xAccessor={d => new Date((d.date as string) + 'T12:00:00')}
+                      margin={{ top: 10, right: 16, bottom: 36, left: 36 }}
+                    >
+                      <Grid horizontal />
+                      <Area dataKey="metaSpend" fill="#1877F2" stroke="#1877F2" strokeWidth={2} />
+                      <Area dataKey="sales" fill="#AEFF6E" stroke="#AEFF6E" strokeWidth={2} />
+                      <Area dataKey="newChats" fill="#6366f1" stroke="#6366f1" strokeWidth={2} />
+                      <XAxis numTicks={4} />
+                      <YAxis numTicks={4} />
+                      <ChartTooltip
+                        rows={(p) => [
+                          { color: '#1877F2', label: 'Meta Ads', value: formatCurrency(p.metaSpend as number) },
+                          { color: '#AEFF6E', label: 'Leads ganhos', value: String(p.sales) },
+                          { color: '#6366f1', label: 'Leads novos', value: String(p.newChats) },
+                        ]}
+                      />
+                    </AreaChart>
                   </div>
                 </div>
-                <div style={{ height: 220 }}>
-                  <AreaChart
-                    data={analyticsData.dailySales as unknown as Record<string, unknown>[]}
-                    xAccessor={d => new Date((d.date as string) + 'T12:00:00')}
-                    margin={{ top: 10, right: 16, bottom: 36, left: 36 }}
-                  >
-                    <Grid horizontal />
-                    <Area dataKey="metaSpend" fill="#1877F2" stroke="#1877F2" strokeWidth={2} />
-                    <Area dataKey="sales" fill="#AEFF6E" stroke="#AEFF6E" strokeWidth={2} />
-                    <Area dataKey="newChats" fill="#6366f1" stroke="#6366f1" strokeWidth={2} />
-                    <XAxis numTicks={4} />
-                    <YAxis numTicks={4} />
-                    <ChartTooltip
-                      rows={(p) => [
-                        { color: '#1877F2', label: 'Meta Ads', value: formatCurrency(p.metaSpend as number) },
-                        { color: '#AEFF6E', label: 'Leads ganhos', value: String(p.sales) },
-                        { color: '#6366f1', label: 'Leads novos', value: String(p.newChats) },
-                      ]}
-                    />
-                  </AreaChart>
-                </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* ── Row 4: Match Table ── */}
             <div className="mt-3 sm:mt-4 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
