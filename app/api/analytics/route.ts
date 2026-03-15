@@ -44,7 +44,11 @@ export async function GET() {
     const headers = { Authorization: `Bearer ${token}` };
 
     const nowTs = Date.now() / 1000;
-    const dayTs = nowTs - 86400;
+    // Midnight BRT (UTC-3) = 03:00 UTC. If current UTC time < 03:00, use previous day's midnight.
+    const midnightBRT = new Date();
+    midnightBRT.setUTCHours(3, 0, 0, 0);
+    if (Date.now() < midnightBRT.getTime()) midnightBRT.setUTCDate(midnightBRT.getUTCDate() - 1);
+    const dayTs = midnightBRT.getTime() / 1000;
     const weekTs = nowTs - 7 * 86400;
     const monthTs = nowTs - 30 * 86400;
 

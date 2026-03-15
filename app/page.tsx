@@ -397,6 +397,21 @@ export default function Dashboard() {
                 </div>
               </div>
 
+              {loadingAnalytics && (
+                <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+                  {[...Array(4)].map((_, i) => (
+                    <div key={i} className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm animate-pulse">
+                      <div className="h-3 bg-gray-100 rounded w-2/3 mb-4" />
+                      <div className="h-8 bg-gray-100 rounded w-1/2" />
+                    </div>
+                  ))}
+                  <div className="col-span-2 lg:col-span-1 bg-white rounded-2xl p-5 border border-gray-100 shadow-sm animate-pulse">
+                    <div className="h-3 bg-gray-100 rounded w-2/3 mb-4" />
+                    <div className="h-8 bg-gray-100 rounded w-1/2" />
+                  </div>
+                </div>
+              )}
+
               {!loadingAnalytics && analyticsData && (() => {
                 const p = analyticsData[analyticsPeriod];
                 return (
