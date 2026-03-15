@@ -1,0 +1,33 @@
+{
+  "name": "tenfront-kommo-sync",
+  "version": "1.0.0",
+  "description": "Sincroniza vendas do TenFront para leads ganhos no Kommo CRM",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "sync": "ts-node src/sync/syncWonLeads.ts",
+    "cron": "ts-node src/index.ts"
+  },
+  "dependencies": {
+    "axios": "^1.7.2",
+    "dotenv": "^16.4.5",
+    "next": "^14.2.5",
+    "node-cron": "^3.0.3",
+    "pg": "^8.20.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/node-cron": "^3.0.11",
+    "@types/pg": "^8.18.0",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "autoprefixer": "^10.4.19",
+    "postcss": "^8.4.39",
+    "tailwindcss": "^3.4.6",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5"
+  }
+}

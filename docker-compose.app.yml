@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  app:
+    image: ghcr.io/deefy1v9/mids:latest
+    networks:
+      - traefik-public
+      - internal
+    environment:
+      DATABASE_URL: postgresql://postgres:${DB_PASSWORD}@database:5432/mids
+      KOMMO_SUBDOMAIN: ${KOMMO_SUBDOMAIN}
+      KOMMO_ACCESS_TOKEN: ${KOMMO_ACCESS_TOKEN}
+      TENFRONT_BASE_URL: ${TENFRONT_BASE_URL}
+      TENFRONT_BEARER_TOKEN: ${TENFRONT_BEARER_TOKEN}
+      TENFRONT_CONSUMER_KEY: ${TENFRONT_CONSUMER_KEY}
+      TENFRONT_CONSUMER_SECRET: ${TENFRONT_CONSUMER_SECRET}
+      CRON_SCHEDULE: ${CRON_SCHEDULE:-0 8 * * *}
+      NODE_ENV: production
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 1
+        order: start-first
+        failure_action: rollback
+      rollback_config:
+        parallelism: 1
+        order: stop-first
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=traefik-public
+        # HTTP — acesso direto pelo IP (sem domínio)
+        - traefik.http.routers.mids.rule=PathPrefix(`/`)
+        - traefik.http.routers.mids.entrypoints=web
+        - traefik.http.services.mids.loadbalancer.server.port=3000
+        # HTTPS com domínio — descomente quando tiver domínio:
+        # - traefik.http.routers.mids-secure.rule=Host(`seudominio.com.br`)
+        # - traefik.http.routers.mids-secure.entrypoints=websecure
+        # - traefik.http.routers.mids-secure.tls.certresolver=letsencrypt
+
+  database:
+    image: postgres:16-alpine
+    networks:
+      - internal
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: mids
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          memory: 512M
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
+
+networks:
+  traefik-public:
+    external: true
+  internal:
+    driver: overlay

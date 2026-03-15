@@ -1,0 +1,235 @@
+[
+  {
+    "contaId": "ATE-VW5O2V8",
+    "clienteName": "Joseane da Costa Gomes",
+    "valor": 6100,
+    "action": "not_found",
+    "id": "1773591408903-sgsc3",
+    "date": "2026-03-15T16:16:48.903Z"
+  },
+  {
+    "contaId": "ATE-2U7GWQK",
+    "clienteName": "Aline Souza Santos",
+    "valor": 899.99,
+    "action": "not_found",
+    "id": "1773591408667-6h0or",
+    "date": "2026-03-15T16:16:48.667Z"
+  },
+  {
+    "contaId": "ATE-MYYAX3W",
+    "clienteName": "DAVI SANTOS NASCIMENTO",
+    "valor": 1090,
+    "action": "not_found",
+    "id": "1773591408392-crsvm",
+    "date": "2026-03-15T16:16:48.392Z"
+  },
+  {
+    "contaId": "ATE-I5DFLWF",
+    "clienteName": "GRYEG GOMES GASPAR",
+    "valor": 2200,
+    "action": "not_found",
+    "id": "1773591408088-pivta",
+    "date": "2026-03-15T16:16:48.088Z"
+  },
+  {
+    "contaId": "ATE-UT7IBSY",
+    "clienteName": "MAYARA TAIANI DOS SANTOS",
+    "valor": 2850,
+    "action": "not_found",
+    "id": "1773591407859-apfai",
+    "date": "2026-03-15T16:16:47.859Z"
+  },
+  {
+    "contaId": "ATE-QFEXO0M",
+    "clienteName": "Suzana Ramos Gálico",
+    "valor": 3890,
+    "action": "not_found",
+    "id": "1773591407568-c4lgz",
+    "date": "2026-03-15T16:16:47.568Z"
+  },
+  {
+    "contaId": "ATE-FPNVHF9",
+    "clienteName": "Reginaldo de França",
+    "valor": 2900,
+    "action": "not_found",
+    "id": "1773591407350-p8b6h",
+    "date": "2026-03-15T16:16:47.350Z"
+  },
+  {
+    "contaId": "ATE-429GHTE",
+    "clienteName": "TALITA SANTOS LOPES",
+    "valor": 1090,
+    "action": "not_found",
+    "id": "1773591407127-wu5iy",
+    "date": "2026-03-15T16:16:47.127Z"
+  },
+  {
+    "contaId": "ATE-M4R2UD8",
+    "clienteName": "Paulo César Barbosa",
+    "valor": 2200,
+    "action": "not_found",
+    "id": "1773591406831-q8gw4",
+    "date": "2026-03-15T16:16:46.831Z"
+  },
+  {
+    "contaId": "ATE-BEKUVNQ",
+    "clienteName": "Ada César Martins",
+    "valor": 7600,
+    "action": "not_found",
+    "id": "1773591404637-jicy3",
+    "date": "2026-03-15T16:16:44.637Z"
+  },
+  {
+    "contaId": "ATE-2AWV0EW",
+    "clienteName": "REGIANE FLÁVIA RODRIGUES",
+    "valor": 1600,
+    "action": "not_found",
+    "id": "1773591404341-lq2ez",
+    "date": "2026-03-15T16:16:44.341Z"
+  },
+  {
+    "contaId": "ATE-10WWT4J",
+    "clienteName": "Ana Carolina Veloso de Carvalho",
+    "valor": 2700,
+    "action": "not_found",
+    "id": "1773591404091-6hh40",
+    "date": "2026-03-15T16:16:44.091Z"
+  },
+  {
+    "contaId": "ATE-PFT4S3T",
+    "clienteName": "Bruna Larissa",
+    "valor": 5800,
+    "action": "won",
+    "id": "1773591403799-lb3tf",
+    "date": "2026-03-15T16:16:43.799Z",
+    "phone": "(13) 9 9113-7088",
+    "kommoContactId": 24323113,
+    "kommoContactName": "Bruna",
+    "kommoLeadId": 21177003,
+    "pipelineId": 11034331,
+    "stageId": 93702523
+  },
+  {
+    "contaId": "ATE-F2Q7B03",
+    "clienteName": "Williams silva Muniz",
+    "valor": 1800,
+    "action": "not_found",
+    "id": "1773591403571-0tcs3",
+    "date": "2026-03-15T16:16:43.571Z"
+  },
+  {
+    "contaId": "ATE-09QF32J",
+    "clienteName": "ALINE SANTANA MACEDO",
+    "valor": 10300,
+    "action": "not_found",
+    "id": "1773591403258-7x2qv",
+    "date": "2026-03-15T16:16:43.258Z"
+  },
+  {
+    "contaId": "ATE-ZKOVK6P",
+    "clienteName": "CLAUDIA VALERIA DA CONCEIÇÃO",
+    "valor": 1000,
+    "action": "not_found",
+    "id": "1773591403042-utnxv",
+    "date": "2026-03-15T16:16:43.042Z"
+  },
+  {
+    "contaId": "ATE-AJ5JY5T",
+    "clienteName": "Elen Bozeid",
+    "valor": 7290,
+    "action": "not_found",
+    "id": "1773591402734-7gp44",
+    "date": "2026-03-15T16:16:42.734Z"
+  },
+  {
+    "contaId": "ATE-7J79ANO",
+    "clienteName": "fabiana regina ferreira jordao",
+    "valor": 5800,
+    "action": "not_found",
+    "id": "1773591402417-nblae",
+    "date": "2026-03-15T16:16:42.417Z"
+  },
+  {
+    "contaId": "ATE-VQ1E06F",
+    "clienteName": "Leornado Ribeiro",
+    "valor": 5900,
+    "action": "not_found",
+    "id": "1773591402193-dbxqc",
+    "date": "2026-03-15T16:16:42.193Z",
+    "phone": "(13) 9970-9428",
+    "errorMessage": "Contato não encontrado no Kommo"
+  },
+  {
+    "contaId": "ATE-LTON7XG",
+    "clienteName": "Carlos Alberto",
+    "valor": 1900,
+    "kommoContactId": 15460582,
+    "kommoContactName": "Carlos Alberto",
+    "kommoLeadId": 12850726,
+    "action": "won",
+    "id": "1773591401931-8st8b",
+    "date": "2026-03-15T16:16:41.931Z",
+    "pipelineId": 11034331,
+    "stageId": 93702523
+  },
+  {
+    "contaId": "ATE-7U1YJ14",
+    "clienteName": "MALLU GIACOMELLI VALINO",
+    "valor": 2100,
+    "action": "not_found",
+    "id": "1773591400048-1ezey",
+    "date": "2026-03-15T16:16:40.048Z"
+  },
+  {
+    "contaId": "ATE-WW51TJZ",
+    "clienteName": "José Ailton Teles de Azevedo",
+    "valor": 4000,
+    "action": "not_found",
+    "id": "1773591399800-q7kxx",
+    "date": "2026-03-15T16:16:39.800Z"
+  },
+  {
+    "contaId": "ATE-T0YD94T",
+    "clienteName": "THALYTA ALVES DOS SANTOS",
+    "valor": 900,
+    "action": "not_found",
+    "id": "1773591398527-okkg1",
+    "date": "2026-03-15T16:16:38.527Z"
+  },
+  {
+    "contaId": "ATE-2G00OVD",
+    "clienteName": "Ana Carolina Silva",
+    "valor": 2200,
+    "action": "won",
+    "id": "1773591398209-bqnh0",
+    "date": "2026-03-15T16:16:38.209Z",
+    "phone": "(13) 9 8882-8818",
+    "kommoContactId": 24486007,
+    "kommoContactName": "Ana Carolina",
+    "kommoLeadId": 21332881,
+    "pipelineId": 11034331,
+    "stageId": 93702523
+  },
+  {
+    "contaId": "ATE-YWWQRGU",
+    "clienteName": "MURILO VASCONCELOS DOMINGUES",
+    "valor": 4200,
+    "action": "won",
+    "id": "1773591397919-tdruc",
+    "date": "2026-03-15T16:16:37.919Z",
+    "phone": "(13) 9 9615-0991",
+    "kommoContactId": 24445395,
+    "kommoContactName": "Murilo",
+    "kommoLeadId": 21291513,
+    "pipelineId": 11034331,
+    "stageId": 93702523
+  },
+  {
+    "contaId": "ATE-YWWQRGU",
+    "clienteName": "MURILO VASCONCELOS DOMINGUES",
+    "valor": 4200,
+    "action": "not_found",
+    "id": "1773591358496-kghgi",
+    "date": "2026-03-15T16:15:58.496Z"
+  }
+]
