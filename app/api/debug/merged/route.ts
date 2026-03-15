@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { TenFrontClient, extractClienteName, normalizeName } from '@/src/tenfront/client';
 

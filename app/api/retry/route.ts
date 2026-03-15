@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { KommoClient } from '@/src/kommo/client';
 import { readConfig } from '@/src/utils/config';
