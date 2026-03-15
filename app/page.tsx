@@ -110,7 +110,14 @@ export default function Dashboard() {
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(() => {
     try {
       const raw = typeof window !== 'undefined' ? localStorage.getItem('mids_analytics') : null;
-      return raw ? (JSON.parse(raw) as AnalyticsData) : null;
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as AnalyticsData;
+      // Invalidate cache if dailySales is missing (old format)
+      if (!Array.isArray(parsed.dailySales)) {
+        try { localStorage.removeItem('mids_analytics'); } catch { /* ignore */ }
+        return null;
+      }
+      return parsed;
     } catch { return null; }
   });
   const [analyticsPeriod, setAnalyticsPeriod] = useState<'today' | 'week' | 'month'>('today');
@@ -711,7 +718,7 @@ const selectedPipeline = pipelines.find(p => p.id === config.pipelineId);
             })()}
 
             {/* ── Row 3: Daily Revenue Chart ── */}
-            {!loadingAnalytics && analyticsData && analyticsData.dailySales.length > 0 && (
+            {!loadingAnalytics && analyticsData && (analyticsData.dailySales?.length ?? 0) > 0 && (
               <div className="mt-3 sm:mt-4 bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
                 <div className="mb-3">
                   <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Faturamento Diário — últimos 14 dias</p>
