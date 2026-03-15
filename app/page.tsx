@@ -686,10 +686,10 @@ export default function Dashboard() {
                   <div style={{ '--chart-1': '#AEFF6E', '--color-muted': 'transparent', '--chart-grid': 'rgba(0,0,0,0.06)', '--chart-foreground': '#111827', '--chart-foreground-muted': '#6B7280' } as React.CSSProperties}>
                     <FunnelChart
                       data={normalizedFunnel}
-                      orientation="horizontal"
+                      orientation="vertical"
                       layers={3}
                       gap={6}
-                      showPercentage={false}
+                      showPercentage={true}
                       showValues={true}
                       showLabels={true}
                       edges="curved"
