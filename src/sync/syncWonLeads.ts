@@ -29,23 +29,21 @@ export async function syncWonLeads(): Promise<SyncResult> {
       : `Ação: mover para pipeline ${config.pipelineId} / etapa ${config.stageId}`
   );
 
-  // 16/03/2026 — only sync clients registered from this date onwards
-  const SYNC_FROM_DATE = new Date('2026-03-16T00:00:00');
-
-  // Parse "DD/MM/YYYY" → Date
-  const parseClienteDate = (raw: unknown): Date | null => {
-    const str = String(raw ?? '').trim();
-    const m = str.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-    if (!m) return null;
-    return new Date(`${m[3]}-${m[2]}-${m[1]}T00:00:00`);
-  };
+  // Página base: 195 = primeira página com clientes de 16/03/2026
+  const BASE_PAGE = 195;
 
   let clientes: Awaited<ReturnType<typeof tenfront.listClientes>> = [];
   try {
-    // Fetch paginated with early termination: stop when entire page is older than cutoff
-    const all = await tenfront.listClientesSince(SYNC_FROM_DATE, parseClienteDate);
+    const all: typeof clientes = [];
+    let page = BASE_PAGE;
+    while (true) {
+      const items = await tenfront.fetchClientePage(page);
+      if (items.length === 0) break;
+      all.push(...items);
+      page++;
+    }
     clientes = all;
-    logger.info(`${clientes.length} clientes a partir de 16/03/2026`);
+    logger.info(`${clientes.length} clientes encontrados (páginas ${BASE_PAGE}–${page - 1})`);
   } catch (err) {
     logger.error('Falha ao buscar clientes do TenFront:', err);
     return result;
