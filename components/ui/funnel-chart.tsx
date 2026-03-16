@@ -216,9 +216,9 @@ function VSegment({ index, normStart, normEnd, segH, fullW, color, layers, stagg
 
 function SegmentLabel({ stage, pct, isHorizontal, showValues, showPercentage, showLabels, formatPercentage, formatValue, index, staggerDelay, layout = "spread", orientation, align = "center" }: { stage: FunnelStage; pct: number; isHorizontal: boolean; showValues: boolean; showPercentage: boolean; showLabels: boolean; formatPercentage: (p: number) => string; formatValue: (v: number) => string; index: number; staggerDelay: number; layout?: "spread" | "grouped"; orientation?: "vertical" | "horizontal"; align?: "center" | "start" | "end"; }) {
   const display = stage.displayValue ?? formatValue(stage.value);
-  const valueEl = showValues && <span className="whitespace-nowrap font-semibold text-foreground text-sm">{display}</span>;
-  const pctEl = showPercentage && <span className="rounded-full bg-foreground px-3 py-1 font-bold text-background text-xs shadow-sm">{formatPercentage(pct)}</span>;
-  const labelEl = showLabels && <span className="whitespace-nowrap font-medium text-muted-foreground text-xs" style={stage.labelStyle}>{stage.label}</span>;
+  const valueEl = showValues && <span className="whitespace-nowrap font-semibold text-foreground text-[10px] sm:text-sm">{display}</span>;
+  const pctEl = showPercentage && <span className="rounded-full bg-foreground px-2 py-0.5 sm:px-3 sm:py-1 font-bold text-background text-[9px] sm:text-xs shadow-sm">{formatPercentage(pct)}</span>;
+  const labelEl = showLabels && <span className="text-center font-medium text-muted-foreground text-[9px] sm:text-xs leading-tight sm:whitespace-nowrap max-w-full" style={stage.labelStyle}>{stage.label}</span>;
 
   if (layout === "spread") {
     return (
