@@ -153,18 +153,23 @@ export class TenFrontClient {
   ): Promise<T[]> {
     const all: T[] = [];
     let page = 1;
-    let totalPages = 1;
 
-    do {
+    while (true) {
       const body = { ...extraBody, page };
       const { data } = await this.http.post<Record<string, unknown>>(endpoint, body);
       // TenFront usa 'Response' (maiúsculo) em alguns endpoints e 'response' (minúsculo) em outros
       const raw = data['Response'] ?? data['response'];
       const items = Array.isArray(raw) ? (raw as T[]) : [];
-      totalPages = Number(data['Total pages'] ?? data['total_pages'] ?? 1);
+
+      if (items.length === 0) break;
       all.push(...items);
+
+      // Se a API informar total de páginas, use; caso contrário, pagine até resposta vazia
+      const totalPages = data['Total pages'] ?? data['total_pages'];
+      if (totalPages !== undefined && page >= Number(totalPages)) break;
+
       page++;
-    } while (page <= totalPages);
+    }
 
     return all;
   }
@@ -218,6 +223,53 @@ export class TenFrontClient {
 
     logger.info(`TenFront: mapa de atendimentos construído com ${map.size} entradas`);
     return map;
+  }
+
+  // Busca uma página específica de /listar-clientes
+  async fetchClientePage(page: number): Promise<Cliente[]> {
+    const { data } = await this.http.post<Record<string, unknown>>(
+      '/listar-clientes', { page }
+    );
+    const raw = data['Response'] ?? data['response'];
+    return Array.isArray(raw) ? (raw as Cliente[]) : [];
+  }
+
+  // Pagina /listar-clientes e para assim que uma página inteira for mais antiga que `since`.
+  // Minimiza chamadas à API quando a lista é ordenada do mais novo para o mais antigo.
+  async listClientesSince(
+    since: Date,
+    parseDate: (raw: unknown) => Date | null
+  ): Promise<Cliente[]> {
+    const result: Cliente[] = [];
+    let page = 1;
+
+    while (true) {
+      const { data } = await this.http.post<Record<string, unknown>>(
+        '/listar-clientes', { page }
+      );
+      const raw = data['Response'] ?? data['response'];
+      const items = Array.isArray(raw) ? (raw as Cliente[]) : [];
+
+      if (items.length === 0) break;
+
+      const matching = items.filter(c => {
+        const d = parseDate(c['Data do cadastro']);
+        return d !== null && d >= since;
+      });
+
+      result.push(...matching);
+
+      // Se nenhum item da página passou no filtro, todos são mais antigos — para
+      if (matching.length === 0) break;
+
+      const totalPages = data['Total pages'] ?? data['total_pages'];
+      if (totalPages !== undefined && page >= Number(totalPages)) break;
+
+      page++;
+    }
+
+    logger.info(`TenFront: ${result.length} clientes encontrados (${page} páginas consultadas)`);
+    return result;
   }
 
   async listClientes(dataInicial?: string, dataFinal?: string): Promise<Cliente[]> {

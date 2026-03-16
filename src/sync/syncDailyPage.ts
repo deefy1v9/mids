@@ -1,60 +1,56 @@
 import 'dotenv/config';
-import { TenFrontClient, extractClienteInfo } from '../tenfront/client';
+import { TenFrontClient, extractClienteInfo, Cliente } from '../tenfront/client';
 import { KommoClient } from '../kommo/client';
 import { writeLastSyncAt } from '../utils/state';
 import { readConfig } from '../utils/config';
 import { saveMatch } from '../utils/matches';
 import { logger } from '../utils/logger';
+import { SyncResult } from './syncWonLeads';
 
-export interface SyncResult {
-  total: number;
-  matched: number;
-  updated: number;
-  notFound: number;
-  errors: number;
+// Dia 0 (16/03/2026) = página 195. Cada dia +1 página.
+const BASE_DATE = new Date('2026-03-16T00:00:00');
+const BASE_PAGE = 195;
+
+export function calcDailyPage(): number {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const dayOffset = Math.floor((today.getTime() - BASE_DATE.getTime()) / 86400000);
+  return BASE_PAGE + Math.max(0, dayOffset);
 }
 
-export async function syncWonLeads(): Promise<SyncResult> {
-  const result: SyncResult = { total: 0, matched: 0, updated: 0, notFound: 0, errors: 0 };
+export async function syncDailyPage(page?: number): Promise<SyncResult & { page: number }> {
+  const result: SyncResult & { page: number } = {
+    total: 0, matched: 0, updated: 0, notFound: 0, errors: 0, page: 0,
+  };
+
+  const targetPage = page ?? calcDailyPage();
+  result.page = targetPage;
 
   const tenfront = new TenFrontClient();
   const kommo = new KommoClient();
   const config = await readConfig();
   const syncStartedAt = new Date().toISOString();
 
-  logger.info('=== Iniciando sincronização (listar-clientes → Kommo por telefone) ===');
+  logger.info(`=== Sync diário — página ${targetPage} ===`);
   logger.info(
     config.markAsWon
       ? 'Ação: marcar como GANHO'
       : `Ação: mover para pipeline ${config.pipelineId} / etapa ${config.stageId}`
   );
 
-  // 16/03/2026 — only sync clients registered from this date onwards
-  const SYNC_FROM_DATE = new Date('2026-03-16T00:00:00');
-
-  // Parse "DD/MM/YYYY" → Date
-  const parseClienteDate = (raw: unknown): Date | null => {
-    const str = String(raw ?? '').trim();
-    const m = str.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-    if (!m) return null;
-    return new Date(`${m[3]}-${m[2]}-${m[1]}T00:00:00`);
-  };
-
-  let clientes: Awaited<ReturnType<typeof tenfront.listClientes>> = [];
+  let clientes: Cliente[] = [];
   try {
-    // Fetch paginated with early termination: stop when entire page is older than cutoff
-    const all = await tenfront.listClientesSince(SYNC_FROM_DATE, parseClienteDate);
-    clientes = all;
-    logger.info(`${clientes.length} clientes a partir de 16/03/2026`);
+    clientes = await tenfront.fetchClientePage(targetPage);
+    logger.info(`Página ${targetPage}: ${clientes.length} clientes encontrados`);
   } catch (err) {
-    logger.error('Falha ao buscar clientes do TenFront:', err);
+    logger.error('Falha ao buscar página do TenFront:', err);
     return result;
   }
 
   result.total = clientes.length;
-  logger.info(`${clientes.length} clientes carregados do TenFront.`);
 
   if (clientes.length === 0) {
+    logger.info('Página vazia — nenhum cliente novo hoje.');
     await writeLastSyncAt(syncStartedAt);
     return result;
   }
@@ -143,16 +139,16 @@ export async function syncWonLeads(): Promise<SyncResult> {
 
   await writeLastSyncAt(syncStartedAt);
 
-  logger.info('=== Sincronização concluída ===');
+  logger.info('=== Sync diário concluído ===');
   logger.info(
-    `Total: ${result.total} | Encontrados: ${result.matched} | Atualizados: ${result.updated} | Não encontrados: ${result.notFound} | Erros: ${result.errors}`
+    `Página: ${targetPage} | Total: ${result.total} | Encontrados: ${result.matched} | Atualizados: ${result.updated} | Não encontrados: ${result.notFound} | Erros: ${result.errors}`
   );
 
   return result;
 }
 
 if (require.main === module) {
-  syncWonLeads().catch((err) => {
+  syncDailyPage().catch((err) => {
     logger.error('Erro fatal:', err);
     process.exit(1);
   });
