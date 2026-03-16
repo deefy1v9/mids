@@ -29,9 +29,10 @@ export async function syncWonLeads(): Promise<SyncResult> {
       : `Ação: mover para pipeline ${config.pipelineId} / etapa ${config.stageId}`
   );
 
+  const SYNC_FROM = '2026-03-16';
   let clientes: Awaited<ReturnType<typeof tenfront.listClientes>> = [];
   try {
-    clientes = await tenfront.listClientes();
+    clientes = await tenfront.listClientes(SYNC_FROM);
   } catch (err) {
     logger.error('Falha ao buscar clientes do TenFront:', err);
     return result;

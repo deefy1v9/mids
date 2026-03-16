@@ -220,9 +220,13 @@ export class TenFrontClient {
     return map;
   }
 
-  async listClientes(): Promise<Cliente[]> {
-    logger.info('TenFront: buscando cadastro de clientes');
-    const items = await this.fetchAllPages<Cliente>('/listar-clientes', {});
+  async listClientes(dataInicial?: string, dataFinal?: string): Promise<Cliente[]> {
+    const body: Record<string, unknown> = {};
+    if (dataInicial) body['data-inicial'] = dataInicial;
+    if (dataFinal) body['data-final'] = dataFinal;
+
+    logger.info(`TenFront: buscando cadastro de clientes (${dataInicial ?? 'sem filtro'} → ${dataFinal ?? 'sem filtro'})`);
+    const items = await this.fetchAllPages<Cliente>('/listar-clientes', body);
     logger.info(`TenFront: ${items.length} clientes encontrados`);
     return items;
   }
