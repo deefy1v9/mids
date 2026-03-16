@@ -11,7 +11,7 @@ export async function GET() {
 
   try {
     const { data } = await axios.get(`${base}/talks`, {
-      params: { limit: 50, with: 'contact,last_message' },
+      params: { limit: 50, with: 'contact,last_message,source' },
       headers,
       validateStatus: () => true,
     });

@@ -24,8 +24,11 @@ interface Talk {
   created_at: number;
   updated_at: number;
   source_uid?: string;
-  last_message?: { text?: string; created_at?: number };
-  _embedded?: { contact?: TalkContact };
+  last_message?: { text?: string; created_at?: number; type?: string };
+  _embedded?: {
+    contact?: TalkContact;
+    source?: { type?: string; external_id?: string; name?: string };
+  };
 }
 interface TalkMessage {
   id: string;
@@ -131,6 +134,7 @@ export default function Dashboard() {
   const [openTalk, setOpenTalk] = useState<Talk | null>(null);
   const [talkMessages, setTalkMessages] = useState<TalkMessage[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
+  const [messagesRaw, setMessagesRaw] = useState<unknown>(null);
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(() => {
     try {
       const raw = typeof window !== 'undefined' ? localStorage.getItem('mids_analytics') : null;
@@ -199,9 +203,20 @@ export default function Dashboard() {
   const openTalkMessages = (talk: Talk) => {
     setOpenTalk(talk);
     setTalkMessages([]);
+    setMessagesRaw(null);
     setLoadingMessages(true);
     fetch(`/api/chat/messages?talkId=${talk.id}`).then(r => r.json())
-      .then(d => setTalkMessages(d?.messages ?? []))
+      .then(d => {
+        setMessagesRaw(d);
+        const msgs: TalkMessage[] = (d?.messages ?? []).map((m: Record<string, unknown>) => ({
+          id: String(m.id ?? Math.random()),
+          text: (m.text as string | undefined) || (m.content as string | undefined) || '',
+          type: m.type as string | undefined,
+          created_at: m.created_at as number | undefined,
+          author: m.author as TalkMessage['author'],
+        }));
+        setTalkMessages(msgs);
+      })
       .catch(() => { })
       .finally(() => setLoadingMessages(false));
   };
@@ -996,7 +1011,16 @@ export default function Dashboard() {
                     const timeStr = isToday
                       ? msgAt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
                       : msgAt.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
-                    const preview = talk.last_message?.text?.trim() || 'Conversa ativa';
+                    // last_message may be an object with 'text' or 'content' depending on Kommo version
+                    const lastMsgObj = talk.last_message as Record<string, unknown> | undefined;
+                    const preview = (lastMsgObj?.text as string | undefined)?.trim()
+                      || (lastMsgObj?.content as string | undefined)?.trim()
+                      || 'Conversa ativa';
+                    // origem: source_uid direto ou embedded source
+                    const origin = talk.source_uid
+                      || talk._embedded?.source?.name
+                      || talk._embedded?.source?.type
+                      || talk._embedded?.source?.external_id;
 
                     return (
                       <button key={talk.id} onClick={() => openTalkMessages(talk)}
@@ -1013,10 +1037,10 @@ export default function Dashboard() {
                             <span className="text-[11px] text-gray-400 flex-shrink-0">{timeStr}</span>
                           </div>
                           <p className="text-xs text-gray-500 truncate leading-relaxed">{preview}</p>
-                          {talk.source_uid && (
+                          {origin && (
                             <span className="inline-block mt-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-full"
                               style={{ background: '#F0FDF4', color: '#16a34a' }}>
-                              {talk.source_uid}
+                              {origin}
                             </span>
                           )}
                         </div>
@@ -1125,7 +1149,19 @@ export default function Dashboard() {
                 </div>
               )}
               {!loadingMessages && talkMessages.length === 0 && (
-                <p className="text-center text-sm py-12" style={{ color: 'var(--text-muted)' }}>Nenhuma mensagem encontrada</p>
+                <div className="py-6 px-2">
+                  <p className="text-center text-sm mb-4" style={{ color: 'var(--text-muted)' }}>Nenhuma mensagem encontrada</p>
+                  {messagesRaw != null && (
+                    <details className="text-[10px] rounded-xl overflow-hidden">
+                      <summary className="cursor-pointer px-3 py-2 font-semibold" style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}>
+                        Ver resposta bruta da API
+                      </summary>
+                      <pre className="p-3 overflow-auto max-h-48 leading-relaxed" style={{ background: '#0d1117', color: '#7ee787' }}>
+                        {JSON.stringify(messagesRaw as object, null, 2)}
+                      </pre>
+                    </details>
+                  )}
+                </div>
               )}
               {!loadingMessages && talkMessages.map((msg, i) => {
                 const isClient = msg.author?.type !== 'user';
