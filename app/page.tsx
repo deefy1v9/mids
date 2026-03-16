@@ -103,6 +103,17 @@ function Sparkline({ data, color = '#AEFF6E', height = 36 }: { data: number[]; c
 export default function Dashboard() {
   const [matches, setMatches] = useState<MatchRecord[]>([]);
   const [pipelines, setPipelines] = useState<KommoPipeline[]>([]);
+  const [isDark, setIsDark] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem('mids_dark') === '1';
+  });
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (isDark) { root.classList.add('dark'); localStorage.setItem('mids_dark', '1'); }
+    else { root.classList.remove('dark'); localStorage.setItem('mids_dark', '0'); }
+  }, [isDark]);
+
   const [config, setConfig] = useState<SyncConfig>({ markAsWon: true });
   const [saving, setSaving] = useState(false);
   const [savedOk, setSavedOk] = useState(false);
@@ -290,10 +301,10 @@ export default function Dashboard() {
   const todayStr = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
 
   return (
-    <div className="min-h-screen" style={{ background: '#F1F3F8', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+    <div className="min-h-screen" style={{ background: 'var(--bg-page)', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
 
       {/* ─── Header ─── */}
-      <header className="bg-white border-b border-gray-100 px-4 sm:px-8 py-3 flex items-center justify-between sticky top-0 z-20">
+      <header className="border-b px-4 sm:px-8 py-3 flex items-center justify-between sticky top-0 z-20" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
         <div className="flex items-center gap-4 sm:gap-8">
           {/* Logo */}
           <div className="flex items-center gap-2.5">
@@ -302,7 +313,7 @@ export default function Dashboard() {
                 <path d="M7 1.5L12.5 4.5V9.5L7 12.5L1.5 9.5V4.5L7 1.5Z" fill="#111" strokeWidth="0" />
               </svg>
             </div>
-            <span className="font-semibold text-gray-900 text-sm tracking-tight">Mids</span>
+            <span className="font-semibold text-sm tracking-tight" style={{ color: 'var(--text-primary)' }}>Mids</span>
           </div>
           {/* Nav — desktop only */}
           <nav className="hidden sm:flex items-center gap-1">
@@ -314,8 +325,8 @@ export default function Dashboard() {
               <button key={tab.key} onClick={() => setActiveTab(tab.key)}
                 className="px-4 py-1.5 rounded-full text-sm font-medium transition-all"
                 style={activeTab === tab.key
-                  ? { background: '#111', color: '#fff' }
-                  : { color: '#9CA3AF' }}>
+                  ? { background: 'var(--text-primary)', color: 'var(--bg-page)' }
+                  : { color: 'var(--text-muted)' }}>
                 {tab.label}
               </button>
             ))}
@@ -324,8 +335,18 @@ export default function Dashboard() {
 
         <div className="flex items-center gap-2 sm:gap-3">
           <span className="text-xs text-gray-400 hidden sm:block">{todayStr}</span>
+          {/* Dark mode toggle */}
+          <button onClick={() => setIsDark(d => !d)}
+            className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors border"
+            style={{ background: 'var(--surface-2)', borderColor: 'var(--border-strong)', color: 'var(--text-muted)' }}
+            title={isDark ? 'Modo claro' : 'Modo escuro'}>
+            {isDark
+              ? <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4.22 2.22a1 1 0 011.42 1.42l-.7.7a1 1 0 01-1.42-1.42l.7-.7zM18 9a1 1 0 110 2h-1a1 1 0 110-2h1zM5.78 15.78a1 1 0 01-1.42-1.42l.7-.7a1 1 0 011.42 1.42l-.7.7zM10 16a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zm-6-7a1 1 0 110 2H3a1 1 0 110-2h1zm1.22-5.78a1 1 0 011.42 1.42l-.7.7A1 1 0 015.52 5.5l.7-.7zM10 6a4 4 0 100 8 4 4 0 000-8z"/></svg>
+              : <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/></svg>
+            }
+          </button>
           <button onClick={runDebugClientes}
-            className="hidden sm:block text-xs text-gray-500 border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50 transition-colors">
+            className="hidden sm:block text-xs text-gray-500 border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50 transition-colors dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800">
             Debug Clientes
           </button>
           <button onClick={runSync} disabled={syncing}
@@ -341,7 +362,7 @@ export default function Dashboard() {
       </header>
 
       {/* ─── Mobile Bottom Nav ─── */}
-      <nav className="sm:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-30 flex">
+      <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-30 flex border-t" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
         {([
           {
             key: 'overview', label: 'Geral', icon: (
@@ -371,7 +392,7 @@ export default function Dashboard() {
         ] as const).map(tab => (
           <button key={tab.key} onClick={() => setActiveTab(tab.key)}
             className="flex-1 py-2.5 flex flex-col items-center gap-0.5 transition-colors"
-            style={activeTab === tab.key ? { color: '#111' } : { color: '#9CA3AF' }}>
+            style={activeTab === tab.key ? { color: 'var(--text-primary)' } : { color: 'var(--text-muted)' }}>
             {tab.icon}
             <span className="text-[10px] font-medium">{tab.label}</span>
           </button>
@@ -396,7 +417,7 @@ export default function Dashboard() {
         {/* Sync result banner */}
         {syncResult && (
           <div className="mb-6 rounded-2xl px-4 sm:px-6 py-3 flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-2 sm:gap-6 text-sm border"
-            style={{ background: '#F7FFF0', borderColor: '#AEFF6E' }}>
+            style={{ background: isDark ? '#0d2010' : '#F7FFF0', borderColor: '#AEFF6E' }}>
             <span className="font-semibold text-gray-800">Sincronização concluída</span>
             <div className="flex flex-wrap gap-3 sm:contents">
               <span className="text-gray-600"><b className="text-gray-900">{syncResult.total}</b> clientes</span>
@@ -429,7 +450,7 @@ export default function Dashboard() {
                     {(['today', 'week', 'month'] as const).map(p => (
                       <button key={p} onClick={() => setAnalyticsPeriod(p)}
                         className="px-2.5 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all"
-                        style={analyticsPeriod === p ? { background: '#111', color: '#fff' } : { color: '#9CA3AF' }}>
+                        style={analyticsPeriod === p ? { background: 'var(--text-primary)', color: 'var(--bg-page)' } : { color: 'var(--text-muted)' }}>
                         {p === 'today' ? 'Hoje' : p === 'week' ? '7d' : '30d'}
                       </button>
                     ))}
@@ -816,7 +837,9 @@ export default function Dashboard() {
                     const canEditPhone = m.action === 'not_found' || (m.action === 'error' && !m.kommoLeadId);
 
                     const dot = { won: '#22c55e', stage_moved: '#6366f1', not_found: '#f59e0b', error: '#ef4444' }[m.action];
-                    const avatarBg = { won: '#dcfce7', stage_moved: '#ede9fe', not_found: '#fef9c3', error: '#fee2e2' }[m.action];
+                    const avatarBg = isDark
+                      ? { won: '#14532d', stage_moved: '#3b0764', not_found: '#422006', error: '#450a0a' }[m.action]
+                      : { won: '#dcfce7', stage_moved: '#ede9fe', not_found: '#fef9c3', error: '#fee2e2' }[m.action];
                     const avatarColor = { won: '#16a34a', stage_moved: '#7c3aed', not_found: '#d97706', error: '#dc2626' }[m.action];
                     const label = { won: 'Ganho', stage_moved: 'Movido', not_found: 'Não encontrado', error: 'Erro' }[m.action];
 
@@ -1005,7 +1028,7 @@ export default function Dashboard() {
                 </div>
                 <button onClick={() => setConfig(c => ({ ...c, markAsWon: !c.markAsWon }))}
                   className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0"
-                  style={{ background: config.markAsWon ? '#AEFF6E' : '#E5E7EB' }}>
+                  style={{ background: config.markAsWon ? '#AEFF6E' : (isDark ? '#374151' : '#E5E7EB') }}>
                   <span className="inline-block h-4 w-4 rounded-full bg-white shadow transition-transform"
                     style={{ transform: config.markAsWon ? 'translateX(22px)' : 'translateX(2px)' }} />
                 </button>
@@ -1049,6 +1072,70 @@ export default function Dashboard() {
         )}
 
       </main>
+
+      {/* ══ MESSAGES MODAL ══ */}
+      {openTalk && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
+          {/* Click outside */}
+          <div className="absolute inset-0" onClick={() => { setOpenTalk(null); setTalkMessages([]); }} />
+          <div className="relative w-full sm:max-w-lg flex flex-col overflow-hidden"
+            style={{ background: 'var(--surface)', maxHeight: '85vh', borderRadius: '1.25rem 1.25rem 0 0' }}>
+
+            {/* Header */}
+            <div className="flex items-center gap-3 px-4 py-3.5 border-b flex-shrink-0" style={{ borderColor: 'var(--border)' }}>
+              <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0"
+                style={{ background: '#EDE9FE', color: '#7C3AED' }}>
+                {(openTalk._embedded?.contact?.name ?? 'L').charAt(0).toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
+                  {openTalk._embedded?.contact?.name ?? `Lead #${openTalk.id}`}
+                </p>
+                {openTalk.source_uid && (
+                  <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{openTalk.source_uid}</p>
+                )}
+              </div>
+              <button onClick={() => { setOpenTalk(null); setTalkMessages([]); }}
+                className="w-8 h-8 rounded-full flex items-center justify-center transition-colors"
+                style={{ color: 'var(--text-muted)', background: 'var(--bg-hover)' }}>
+                ✕
+              </button>
+            </div>
+
+            {/* Messages list */}
+            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2">
+              {loadingMessages && (
+                <div className="flex items-center justify-center py-12">
+                  <div className="w-6 h-6 border-2 border-gray-300 border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+              {!loadingMessages && talkMessages.length === 0 && (
+                <p className="text-center text-sm py-12" style={{ color: 'var(--text-muted)' }}>Nenhuma mensagem encontrada</p>
+              )}
+              {!loadingMessages && talkMessages.map((msg, i) => {
+                const isClient = msg.author?.type !== 'user';
+                const ts = msg.created_at
+                  ? new Date(msg.created_at * 1000).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+                  : '';
+                return (
+                  <div key={msg.id ?? i} className={`flex ${isClient ? 'justify-start' : 'justify-end'}`}>
+                    <div className="max-w-[78%] px-3.5 py-2"
+                      style={{
+                        background: isClient ? 'var(--bubble-in)' : '#2563eb',
+                        color: isClient ? 'var(--text-primary)' : '#fff',
+                        borderRadius: isClient ? '4px 18px 18px 18px' : '18px 4px 18px 18px',
+                      }}>
+                      <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{msg.text || '—'}</p>
+                      {ts && <p className="text-[10px] mt-1 opacity-60 text-right">{ts}</p>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
