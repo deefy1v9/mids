@@ -679,9 +679,9 @@ export default function Dashboard() {
 
               const rawFunnel = hasData
                 ? [
-                  { label: 'Chats Novos', value: Math.max(newChats, 1), displayValue: String(newChats), color: '#AEFF6E', labelStyle: { textShadow: '0 1px 3px rgba(0,0,0,0.5)' } },
-                  { label: 'Em Tratativa', value: Math.max(activeLeads, 1), displayValue: String(activeLeads), color: '#AEFF6E', labelStyle: { textShadow: '0 1px 3px rgba(0,0,0,0.5)' } },
-                  { label: 'Vendas', value: Math.max(sales, 1), displayValue: String(sales), color: '#AEFF6E', labelStyle: { textShadow: '0 1px 3px rgba(0,0,0,0.5)' } },
+                  { label: 'Chats Novos', value: Math.max(newChats, 1), displayValue: String(newChats), color: '#AEFF6E', labelStyle: { color: 'black', textShadow: '0 1px 3px rgba(0,0,0,0.5)' }, valueStyle: { color: 'black' }, percentageStyle: { color: 'black', backgroundColor: 'transparent', boxShadow: 'none' } },
+                  { label: 'Em Tratativa', value: Math.max(activeLeads, 1), displayValue: String(activeLeads), color: '#AEFF6E', labelStyle: { color: 'black', textShadow: '0 1px 3px rgba(0,0,0,0.5)' }, valueStyle: { color: 'black' }, percentageStyle: { color: 'black', backgroundColor: 'transparent', boxShadow: 'none' } },
+                  { label: 'Vendas', value: Math.max(sales, 1), displayValue: String(sales), color: '#AEFF6E', labelStyle: { color: 'black', textShadow: '0 1px 3px rgba(0,0,0,0.5)' }, valueStyle: { color: 'black' }, percentageStyle: { color: 'black', backgroundColor: 'transparent', boxShadow: 'none' } },
                 ]
                 : mockFunnelData;
 
