@@ -92,18 +92,34 @@ export async function GET() {
     const metaToken = process.env.META_ACCESS_TOKEN;
     const metaAccountId = process.env.META_AD_ACCOUNT_ID;
 
-    const fetchMetaSpend = async (datePreset: string): Promise<{ spend: number; error?: string }> => {
-      if (!metaToken || !metaAccountId) return { spend: 0, error: 'missing credentials' };
+    // Result action types ordered by priority
+    const RESULT_ACTIONS = ['lead', 'purchase', 'omni_purchase', 'complete_registration', 'contact_total'];
+
+    const extractResults = (actions?: { action_type: string; value: string }[]): number => {
+      if (!actions) return 0;
+      for (const key of RESULT_ACTIONS) {
+        const match = actions.find(a => a.action_type === key);
+        if (match) return parseInt(match.value, 10);
+      }
+      // fallback: sum all actions
+      return actions.reduce((s, a) => s + parseInt(a.value, 10), 0);
+    };
+
+    const fetchMetaSpend = async (datePreset: string): Promise<{ spend: number; results: number; costPerResult: number; error?: string }> => {
+      if (!metaToken || !metaAccountId) return { spend: 0, results: 0, costPerResult: 0, error: 'missing credentials' };
       try {
         const { data } = await axios.get(
           `https://graph.facebook.com/v19.0/${metaAccountId}/insights`,
-          { params: { fields: 'spend', date_preset: datePreset, access_token: metaToken }, validateStatus: () => true }
+          { params: { fields: 'spend,actions', date_preset: datePreset, access_token: metaToken }, validateStatus: () => true }
         );
-        if (data?.error) return { spend: 0, error: data.error.message ?? JSON.stringify(data.error) };
-        const spend = data?.data?.[0]?.spend;
-        return { spend: spend ? parseFloat(spend) : 0 };
+        if (data?.error) return { spend: 0, results: 0, costPerResult: 0, error: data.error.message ?? JSON.stringify(data.error) };
+        const row = data?.data?.[0];
+        const spend = row?.spend ? parseFloat(row.spend) : 0;
+        const results = extractResults(row?.actions);
+        const costPerResult = results > 0 ? spend / results : 0;
+        return { spend, results, costPerResult };
       } catch (e) {
-        return { spend: 0, error: String(e) };
+        return { spend: 0, results: 0, costPerResult: 0, error: String(e) };
       }
     };
 
@@ -138,9 +154,9 @@ export async function GET() {
     ]);
 
     return NextResponse.json({
-      today: { ...aggregate(today), newChats: calcChats(dayTs), avgResponseMinutes: calcAvgResponse(dayTs), metaSpend: todayMeta.spend },
-      week: { ...aggregate(weekAgo), newChats: calcChats(weekTs), avgResponseMinutes: calcAvgResponse(weekTs), metaSpend: weekMeta.spend },
-      month: { ...aggregate(monthAgo), newChats: calcChats(monthTs), avgResponseMinutes: calcAvgResponse(monthTs), metaSpend: monthMeta.spend },
+      today: { ...aggregate(today), newChats: calcChats(dayTs), avgResponseMinutes: calcAvgResponse(dayTs), metaSpend: todayMeta.spend, metaResults: todayMeta.results, metaCostPerResult: todayMeta.costPerResult },
+      week: { ...aggregate(weekAgo), newChats: calcChats(weekTs), avgResponseMinutes: calcAvgResponse(weekTs), metaSpend: weekMeta.spend, metaResults: weekMeta.results, metaCostPerResult: weekMeta.costPerResult },
+      month: { ...aggregate(monthAgo), newChats: calcChats(monthTs), avgResponseMinutes: calcAvgResponse(monthTs), metaSpend: monthMeta.spend, metaResults: monthMeta.results, metaCostPerResult: monthMeta.costPerResult },
       dailySales,
       metaError: todayMeta.error ?? weekMeta.error ?? monthMeta.error ?? null,
     });

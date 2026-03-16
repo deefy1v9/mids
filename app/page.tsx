@@ -56,7 +56,7 @@ interface KommoPipeline { id: number; name: string; _embedded: { statuses: Kommo
 interface SyncConfig { markAsWon: boolean; pipelineId?: number; stageId?: number; }
 interface SyncResult { total: number; matched: number; updated: number; notFound: number; errors: number; }
 
-interface AnalyticsPeriod { sales: number; revenue: number; newChats: number; avgResponseMinutes: number; metaSpend: number; }
+interface AnalyticsPeriod { sales: number; revenue: number; newChats: number; avgResponseMinutes: number; metaSpend: number; metaResults?: number; metaCostPerResult?: number; }
 interface AnalyticsData {
   today: AnalyticsPeriod; week: AnalyticsPeriod; month: AnalyticsPeriod;
   dailySales: { date: string; sales: number; revenue: number; newChats: number; metaSpend: number }[];
@@ -526,8 +526,22 @@ export default function Dashboard() {
                           <p className="text-2xl font-bold text-white leading-tight">{formatCurrency(p.metaSpend)}</p>
                           {analyticsData.metaError
                             ? <p className="text-xs text-red-400 mt-1 truncate" title={analyticsData.metaError}>⚠ erro API</p>
-                            : <p className="text-xs text-gray-500 mt-1">investido</p>
+                            : <p className="text-xs mt-1" style={{ color: '#a78bfa' }}>investido</p>
                           }
+                          {!analyticsData.metaError && (p.metaResults ?? 0) > 0 && (
+                            <div className="mt-3 pt-3 border-t" style={{ borderColor: '#3d2a6e' }}>
+                              <div className="flex items-center justify-between gap-2">
+                                <div>
+                                  <p className="text-lg font-bold text-white leading-tight">{p.metaResults}</p>
+                                  <p className="text-[11px]" style={{ color: '#a78bfa' }}>resultados</p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-sm font-semibold text-white">{formatCurrency(p.metaCostPerResult ?? 0)}</p>
+                                  <p className="text-[11px]" style={{ color: '#a78bfa' }}>por resultado</p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
 
