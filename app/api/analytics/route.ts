@@ -92,8 +92,12 @@ export async function GET() {
     const metaToken = process.env.META_ACCESS_TOKEN;
     const metaAccountId = process.env.META_AD_ACCOUNT_ID;
 
-    // Result action types ordered by priority
-    const RESULT_ACTIONS = ['lead', 'purchase', 'omni_purchase', 'complete_registration', 'contact_total'];
+    // Messaging conversation started action types
+    const RESULT_ACTIONS = [
+      'onsite_conversion.messaging_conversation_started_7d',
+      'onsite_conversion.total_messaging_connection',
+      'messaging_first_replies',
+    ];
 
     const extractResults = (actions?: { action_type: string; value: string }[]): number => {
       if (!actions) return 0;
@@ -101,8 +105,7 @@ export async function GET() {
         const match = actions.find(a => a.action_type === key);
         if (match) return parseInt(match.value, 10);
       }
-      // fallback: sum all actions
-      return actions.reduce((s, a) => s + parseInt(a.value, 10), 0);
+      return 0;
     };
 
     const fetchMetaSpend = async (datePreset: string): Promise<{ spend: number; results: number; costPerResult: number; error?: string }> => {
