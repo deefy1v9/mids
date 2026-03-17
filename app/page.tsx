@@ -378,7 +378,7 @@ export default function Dashboard() {
           <div className="flex items-center gap-1.5">
             <input
               type="number" value={syncPage} onChange={e => setSyncPage(e.target.value)}
-              min={195} disabled={syncing}
+              min={1} disabled={syncing}
               className="w-16 text-xs text-center border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-300 disabled:opacity-50"
               style={{ background: 'var(--surface-2)', color: 'var(--text-primary)', borderColor: 'var(--border-strong)' }}
               title="Página do TenFront para sincronizar"
