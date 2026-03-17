@@ -145,7 +145,7 @@ export default function Dashboard() {
       if (!raw) return null;
       const parsed = JSON.parse(raw) as AnalyticsData;
       // Invalidate cache if format is outdated
-      if (!Array.isArray(parsed.dailySales) || parsed.today?.lucro === undefined) {
+      if (!parsed.today || !parsed.week || !parsed.month || !Array.isArray(parsed.dailySales) || parsed.today?.lucro === undefined) {
         try { localStorage.removeItem('mids_analytics'); } catch { /* ignore */ }
         return null;
       }
@@ -160,7 +160,7 @@ export default function Dashboard() {
       fetch('/api/matches').then(r => r.json()),
       fetch('/api/config').then(r => r.json()),
     ]);
-    setMatches(matchRes);
+    setMatches(Array.isArray(matchRes) ? matchRes : []);
     setConfig(configRes);
   }, []);
 
@@ -206,6 +206,7 @@ export default function Dashboard() {
       setLoadingAnalytics(true);
       fetch('/api/analytics').then(r => r.json())
         .then(d => {
+          if (!d?.today || !d?.week || !d?.month) return;
           setAnalyticsData(d);
           try { localStorage.setItem('mids_analytics', JSON.stringify(d)); } catch { /* storage full or private mode */ }
         })

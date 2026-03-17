@@ -4,12 +4,17 @@ import { logger } from '../utils/logger';
 // Estrutura real retornada pela API TenFront (/listar-contas-a-receber)
 export interface ContaAReceber {
   'Forma': string;
-  'Origem': string;           // Código do atendimento: "ATE-XXXXXXX"
+  'Forma de pagamento'?: string;
+  'Origem': string;
   'Descrição': string;        // "ATE-XXXXXXX | Nome do Cliente"
-  'Data recebimento': string; // "DD/MM/YYYY"
+  'Data recebimento'?: string; // "DD/MM/YYYY"
+  'Data compensação'?: string; // "DD/MM/YYYY" — campo alternativo
   'Conta': string;
-  'Valor informado': number;
+  'Valor informado'?: number;
+  'Valor'?: number;           // campo alternativo
+  'Status'?: string;          // "Compensado" | outros
   'Atendente': string;
+  [key: string]: unknown;
 }
 
 // Interface flexível para atendimentos — os campos reais serão confirmados via debug
@@ -158,12 +163,13 @@ export class TenFrontClient {
 
   private async fetchAllPages<T>(
     endpoint: string,
-    extraBody: Record<string, unknown> = {}
+    extraBody: Record<string, unknown> = {},
+    maxPages = 200
   ): Promise<T[]> {
     const all: T[] = [];
     let page = 1;
 
-    while (true) {
+    while (page <= maxPages) {
       const body = { ...extraBody, page };
       const { data } = await this.http.post<Record<string, unknown>>(endpoint, body);
       // TenFront usa 'Response' (maiúsculo) em alguns endpoints e 'response' (minúsculo) em outros
@@ -192,7 +198,7 @@ export class TenFrontClient {
     if (dataFinal) body['data-final'] = dataFinal;
 
     logger.info(`TenFront: buscando contas a receber (${dataInicial} → ${dataFinal})`);
-    const items = await this.fetchAllPages<ContaAReceber>('/listar-contas-a-receber', body);
+    const items = await this.fetchAllPages<ContaAReceber>('/listar-contas-a-receber', body, 20);
     logger.info(`TenFront: ${items.length} contas a receber encontradas`);
     return items;
   }

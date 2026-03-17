@@ -154,7 +154,11 @@ export async function GET() {
     let contasAReceber: ContaAReceber[] = [];
     try {
       const tf = new TenFrontClient();
-      contasAReceber = await tf.listContasAReceber(fmtBR(month30Ago), fmtBR(todayDate));
+      const timeout = new Promise<ContaAReceber[]>(resolve => setTimeout(() => resolve([]), 12000));
+      contasAReceber = await Promise.race([
+        tf.listContasAReceber(fmtBR(month30Ago), fmtBR(todayDate)),
+        timeout,
+      ]);
     } catch { /* falha silenciosa — revenue fica 0 */ }
 
     const parseBRDate = (s: string) => {
@@ -164,9 +168,15 @@ export async function GET() {
 
     const revenueByDay: Record<string, number> = {};
     for (const c of contasAReceber) {
-      const day = parseBRDate(c['Data recebimento']);
+      // Only count compensated transactions
+      if (c['Status'] && c['Status'] !== 'Compensado') continue;
+      // Try both date field names
+      const rawDate = c['Data compensação'] ?? c['Data recebimento'] ?? '';
+      const day = parseBRDate(rawDate);
       if (!day) continue;
-      revenueByDay[day] = (revenueByDay[day] ?? 0) + (c['Valor informado'] ?? 0);
+      // Try both value field names
+      const valor = c['Valor informado'] ?? c['Valor'] ?? 0;
+      revenueByDay[day] = (revenueByDay[day] ?? 0) + Number(valor);
     }
 
     const sumRevenue = (from: string) =>
