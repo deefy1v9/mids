@@ -28,6 +28,7 @@ export interface ClienteInfo {
   celular?: string;
   email?: string;
   cpf?: string;
+  registrationDate?: string; // ISO date string from "Data do cadastro" (DD/MM/YYYY)
 }
 
 // Dados relevantes extraídos de um atendimento para uso no sync
@@ -106,11 +107,19 @@ export function extractClienteInfo(cliente: Cliente): ClienteInfo | null {
   const email = get('E-mail') || get('Email') || undefined;
   const cpf = get('CPF') || get('Cpf') || undefined;
 
+  // Parse "DD/MM/YYYY" → "YYYY-MM-DD"
+  const rawDate = get('Data do cadastro');
+  const dateMatch = rawDate.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  const registrationDate = dateMatch
+    ? `${dateMatch[3]}-${dateMatch[2]}-${dateMatch[1]}`
+    : undefined;
+
   return {
     clienteName,
     celular: celular || undefined,
     email: email || undefined,
     cpf: cpf || undefined,
+    registrationDate,
   };
 }
 

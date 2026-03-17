@@ -131,6 +131,8 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<'overview' | 'chat' | 'config'>('overview');
   const [crmData, setCrmData] = useState<{ pipelines: CrmPipeline[]; leads: CrmLead[] } | null>(null);
   const [loadingCrm, setLoadingCrm] = useState(false);
+  const [vendidoData, setVendidoData] = useState<{ total: number; metaAds: number; pipelineName?: string; stageName?: string | null; error?: string } | null>(null);
+  const [loadingVendido, setLoadingVendido] = useState(false);
   const [chatData, setChatData] = useState<Talk[]>([]);
   const [loadingChat, setLoadingChat] = useState(false);
   const [openTalk, setOpenTalk] = useState<Talk | null>(null);
@@ -178,6 +180,16 @@ export default function Dashboard() {
         .finally(() => setLoadingCrm(false));
     }
   }, [activeTab, crmData, loadingCrm]);
+
+  useEffect(() => {
+    if (activeTab === 'overview' && !vendidoData && !loadingVendido) {
+      setLoadingVendido(true);
+      fetch('/api/crm/vendido').then(r => r.json())
+        .then(d => setVendidoData(d))
+        .catch(() => { })
+        .finally(() => setLoadingVendido(false));
+    }
+  }, [activeTab, vendidoData, loadingVendido]);
 
   useEffect(() => {
     if (activeTab === 'chat' && chatData.length === 0 && !loadingChat) {
@@ -707,8 +719,8 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* ── Row 2: Fechamentos ── */}
-            <div className="grid grid-cols-1 gap-3 sm:gap-4 mt-3 sm:mt-4">
+            {/* ── Row 2: Fechamentos + Vendido Meta Ads ── */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 mt-3 sm:mt-4">
               <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
                 <p className="text-xs text-gray-400 font-medium uppercase tracking-wide mb-3">Fechamentos</p>
                 <div className="flex items-center gap-6">
@@ -721,6 +733,51 @@ export default function Dashboard() {
                     <span className="text-4xl font-bold" style={{ color: '#16a34a' }}>{stats.won}</span>
                     <p className="text-xs text-gray-400 mt-0.5">ganhos</p>
                   </div>
+                </div>
+              </div>
+
+              {/* Card: Vendido — Meta Ads */}
+              <div className="rounded-2xl p-5 border shadow-sm relative overflow-hidden"
+                style={{ background: '#0e1726', borderColor: '#1a2a4a' }}>
+                <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full opacity-20"
+                  style={{ background: '#1877F2', filter: 'blur(30px)' }} />
+                <div className="relative">
+                  <div className="flex items-start justify-between mb-4">
+                    <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Vendido · Meta Ads</p>
+                    <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
+                      style={{ background: '#1877F2', color: '#fff' }}>f</div>
+                  </div>
+                  {loadingVendido ? (
+                    <div className="w-4 h-4 border-2 border-gray-600 border-t-transparent rounded-full animate-spin" />
+                  ) : vendidoData?.error ? (
+                    <p className="text-xs text-red-400">Erro ao carregar</p>
+                  ) : (
+                    <>
+                      <div className="flex items-baseline gap-4">
+                        <div>
+                          <span className="text-4xl font-bold text-white">{vendidoData?.metaAds ?? '—'}</span>
+                          <p className="text-xs mt-0.5" style={{ color: '#93c5fd' }}>origem Meta Ads</p>
+                        </div>
+                        {(vendidoData?.total ?? 0) > 0 && (
+                          <>
+                            <div className="w-px h-10 bg-gray-700" />
+                            <div>
+                              <span className="text-2xl font-bold text-gray-400">{vendidoData?.total}</span>
+                              <p className="text-xs text-gray-500 mt-0.5">total vendido</p>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                      {vendidoData?.stageName && (
+                        <p className="text-xs text-gray-600 mt-3 truncate">
+                          {vendidoData.pipelineName} · {vendidoData.stageName}
+                        </p>
+                      )}
+                      {vendidoData && !vendidoData.stageName && (
+                        <p className="text-xs text-amber-600 mt-2">Etapa "Vendido" não encontrada</p>
+                      )}
+                    </>
+                  )}
                 </div>
               </div>
             </div>

@@ -61,7 +61,7 @@ export async function syncWonLeads(fromPage?: number): Promise<SyncResult> {
     const info = extractClienteInfo(cliente);
     if (!info?.clienteName) continue;
 
-    const { clienteName, celular, email } = info;
+    const { clienteName, celular, email, registrationDate } = info;
 
     if (!celular && !email) {
       result.notFound++;
@@ -104,7 +104,7 @@ export async function syncWonLeads(fromPage?: number): Promise<SyncResult> {
                   kommoContactId: contact.id, kommoContactName: contact.name,
                   kommoLeadId: lead.id, kommoLeadName: lead.name,
                   action: 'won',
-                });
+                }, registrationDate);
                 logger.success(`Lead #${lead.id} "${lead.name}" → GANHO  (${clienteName})`);
               } else if (config.pipelineId && config.stageId) {
                 await kommo.moveLeadToStage(lead.id, config.pipelineId, config.stageId);
@@ -113,7 +113,7 @@ export async function syncWonLeads(fromPage?: number): Promise<SyncResult> {
                   kommoContactId: contact.id, kommoContactName: contact.name,
                   kommoLeadId: lead.id, kommoLeadName: lead.name,
                   action: 'stage_moved', pipelineId: config.pipelineId, stageId: config.stageId,
-                });
+                }, registrationDate);
                 logger.success(`Lead #${lead.id} "${lead.name}" → etapa ${config.stageId}  (${clienteName})`);
               } else {
                 logger.warn('Configuração incompleta: markAsWon=false mas pipelineId/stageId não definidos.');

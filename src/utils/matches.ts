@@ -41,23 +41,30 @@ function rowToRecord(row: Record<string, any>): MatchRecord {
   };
 }
 
-export async function saveMatch(record: Omit<MatchRecord, 'id' | 'date'>): Promise<MatchRecord> {
+export async function saveMatch(
+  record: Omit<MatchRecord, 'id' | 'date'>,
+  saleDate?: string  // ISO date "YYYY-MM-DD" — uses NOW() if omitted
+): Promise<MatchRecord> {
   await ensureMigrated();
   const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  const dateExpr = saleDate ? `$15::date` : 'NOW()';
+  const values: unknown[] = [
+    id, String(record.contaId), record.clienteName,
+    record.phone ?? null, record.email ?? null, record.valor ?? null,
+    record.kommoContactId ?? null, record.kommoContactName ?? null,
+    record.kommoLeadId ?? null, record.kommoLeadName ?? null,
+    record.action, record.pipelineId ?? null, record.stageId ?? null,
+    record.errorMessage ?? null,
+  ];
+  if (saleDate) values.push(saleDate);
+
   const { rows } = await pool.query(
     `INSERT INTO matches (id, date, conta_id, cliente_name, phone, email, valor,
        kommo_contact_id, kommo_contact_name, kommo_lead_id, kommo_lead_name,
        action, pipeline_id, stage_id, error_message)
-     VALUES ($1, NOW(), $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+     VALUES ($1, ${dateExpr}, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
      RETURNING *`,
-    [
-      id, String(record.contaId), record.clienteName,
-      record.phone ?? null, record.email ?? null, record.valor ?? null,
-      record.kommoContactId ?? null, record.kommoContactName ?? null,
-      record.kommoLeadId ?? null, record.kommoLeadName ?? null,
-      record.action, record.pipelineId ?? null, record.stageId ?? null,
-      record.errorMessage ?? null,
-    ]
+    values
   );
   return rowToRecord(rows[0]);
 }
