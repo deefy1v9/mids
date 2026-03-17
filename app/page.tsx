@@ -59,7 +59,7 @@ interface KommoPipeline { id: number; name: string; _embedded: { statuses: Kommo
 interface SyncConfig { markAsWon: boolean; pipelineId?: number; stageId?: number; }
 interface SyncResult { total: number; matched: number; updated: number; notFound: number; errors: number; }
 
-interface AnalyticsPeriod { sales: number; revenue: number; newChats: number; avgResponseMinutes: number; metaSpend: number; metaResults?: number; metaCostPerResult?: number; }
+interface AnalyticsPeriod { sales: number; revenue: number; lucro?: number; newChats: number; avgResponseMinutes: number; metaSpend: number; metaResults?: number; metaCostPerResult?: number; }
 interface AnalyticsData {
   today: AnalyticsPeriod; week: AnalyticsPeriod; month: AnalyticsPeriod;
   dailySales: { date: string; sales: number; revenue: number; newChats: number; metaSpend: number }[];
@@ -144,8 +144,8 @@ export default function Dashboard() {
       const raw = typeof window !== 'undefined' ? localStorage.getItem('mids_analytics') : null;
       if (!raw) return null;
       const parsed = JSON.parse(raw) as AnalyticsData;
-      // Invalidate cache if dailySales is missing (old format)
-      if (!Array.isArray(parsed.dailySales)) {
+      // Invalidate cache if format is outdated
+      if (!Array.isArray(parsed.dailySales) || parsed.today?.lucro === undefined) {
         try { localStorage.removeItem('mids_analytics'); } catch { /* ignore */ }
         return null;
       }
@@ -512,17 +512,13 @@ export default function Dashboard() {
               </div>
 
               {loadingAnalytics && (
-                <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
-                  {[...Array(4)].map((_, i) => (
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                  {[...Array(6)].map((_, i) => (
                     <div key={i} className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm animate-pulse">
                       <div className="h-3 bg-gray-100 rounded w-2/3 mb-4" />
                       <div className="h-8 bg-gray-100 rounded w-1/2" />
                     </div>
                   ))}
-                  <div className="col-span-2 lg:col-span-1 bg-white rounded-2xl p-5 border border-gray-100 shadow-sm animate-pulse">
-                    <div className="h-3 bg-gray-100 rounded w-2/3 mb-4" />
-                    <div className="h-8 bg-gray-100 rounded w-1/2" />
-                  </div>
                 </div>
               )}
 
@@ -530,7 +526,7 @@ export default function Dashboard() {
                 const p = analyticsData[analyticsPeriod];
                 return (
                   <>
-                    <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                       {/* Vendas */}
                       <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
                         <div className="flex items-start justify-between mb-4">
@@ -556,6 +552,25 @@ export default function Dashboard() {
                               style={{ background: '#AEFF6E', color: '#111' }}>R$</div>
                           </div>
                           <p className="text-2xl font-bold text-white leading-tight">{formatCurrency(p.revenue)}</p>
+                        </div>
+                      </div>
+
+                      {/* Lucro */}
+                      <div className="rounded-2xl p-5 border shadow-sm relative overflow-hidden"
+                        style={{ background: '#0a1f0f', borderColor: '#1a3a20' }}>
+                        <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full opacity-30"
+                          style={{ background: '#AEFF6E', filter: 'blur(30px)' }} />
+                        <div className="relative">
+                          <div className="flex items-start justify-between mb-4">
+                            <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Lucro</p>
+                            <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
+                              style={{ background: '#AEFF6E', color: '#111' }}>↑</div>
+                          </div>
+                          <p className="text-2xl font-bold leading-tight"
+                            style={{ color: (p.lucro ?? 0) >= 0 ? '#AEFF6E' : '#f87171' }}>
+                            {formatCurrency(p.lucro ?? 0)}
+                          </p>
+                          <p className="text-xs mt-1" style={{ color: '#86efac' }}>faturamento − meta ads</p>
                         </div>
                       </div>
 
@@ -603,7 +618,7 @@ export default function Dashboard() {
                       </div>
 
                       {/* Tempo médio resposta */}
-                      <div className="col-span-2 lg:col-span-1 bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+                      <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
                         <div className="flex items-start justify-between mb-4">
                           <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Tempo Médio Resposta</p>
                           <div className="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center text-sm">⏱</div>

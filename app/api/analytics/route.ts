@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { pool, ensureMigrated } from '@/src/utils/db';
 import axios from 'axios';
+import { TenFrontClient, ContaAReceber } from '@/src/tenfront/client';
 
 export async function GET() {
   try {
@@ -144,11 +145,38 @@ export async function GET() {
       // leave dailyMetaMap empty
     }
 
-    const dailySales = dailySalesBase.map(r => ({
-      ...r,
-      newChats: dailyChatsMap[r.date] ?? 0,
-      metaSpend: dailyMetaMap[r.date] ?? 0,
-    }));
+    // TenFront faturamento — 1 chamada com janela de 30 dias
+    const fmtBR = (d: Date) =>
+      `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+    const todayDate = new Date();
+    const month30Ago = new Date(todayDate.getTime() - 30 * 86400000);
+
+    let contasAReceber: ContaAReceber[] = [];
+    try {
+      const tf = new TenFrontClient();
+      contasAReceber = await tf.listContasAReceber(fmtBR(month30Ago), fmtBR(todayDate));
+    } catch { /* falha silenciosa — revenue fica 0 */ }
+
+    const parseBRDate = (s: string) => {
+      const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+      return m ? `${m[3]}-${m[2]}-${m[1]}` : null;
+    };
+
+    const revenueByDay: Record<string, number> = {};
+    for (const c of contasAReceber) {
+      const day = parseBRDate(c['Data recebimento']);
+      if (!day) continue;
+      revenueByDay[day] = (revenueByDay[day] ?? 0) + (c['Valor informado'] ?? 0);
+    }
+
+    const sumRevenue = (from: string) =>
+      Object.entries(revenueByDay)
+        .filter(([d]) => d >= from)
+        .reduce((s, [, v]) => s + v, 0);
+
+    const todayRevenue = sumRevenue(today);
+    const weekRevenue = sumRevenue(weekAgo);
+    const monthRevenue = sumRevenue(monthAgo);
 
     const [todayMeta, weekMeta, monthMeta] = await Promise.all([
       fetchMetaSpend('today'),
@@ -157,10 +185,27 @@ export async function GET() {
     ]);
 
     return NextResponse.json({
-      today: { ...aggregate(today), newChats: calcChats(dayTs), avgResponseMinutes: calcAvgResponse(dayTs), metaSpend: todayMeta.spend, metaResults: todayMeta.results, metaCostPerResult: todayMeta.costPerResult },
-      week: { ...aggregate(weekAgo), newChats: calcChats(weekTs), avgResponseMinutes: calcAvgResponse(weekTs), metaSpend: weekMeta.spend, metaResults: weekMeta.results, metaCostPerResult: weekMeta.costPerResult },
-      month: { ...aggregate(monthAgo), newChats: calcChats(monthTs), avgResponseMinutes: calcAvgResponse(monthTs), metaSpend: monthMeta.spend, metaResults: monthMeta.results, metaCostPerResult: monthMeta.costPerResult },
-      dailySales,
+      today: {
+        sales: aggregate(today).sales, revenue: todayRevenue, lucro: todayRevenue - todayMeta.spend,
+        newChats: calcChats(dayTs), avgResponseMinutes: calcAvgResponse(dayTs),
+        metaSpend: todayMeta.spend, metaResults: todayMeta.results, metaCostPerResult: todayMeta.costPerResult,
+      },
+      week: {
+        sales: aggregate(weekAgo).sales, revenue: weekRevenue, lucro: weekRevenue - weekMeta.spend,
+        newChats: calcChats(weekTs), avgResponseMinutes: calcAvgResponse(weekTs),
+        metaSpend: weekMeta.spend, metaResults: weekMeta.results, metaCostPerResult: weekMeta.costPerResult,
+      },
+      month: {
+        sales: aggregate(monthAgo).sales, revenue: monthRevenue, lucro: monthRevenue - monthMeta.spend,
+        newChats: calcChats(monthTs), avgResponseMinutes: calcAvgResponse(monthTs),
+        metaSpend: monthMeta.spend, metaResults: monthMeta.results, metaCostPerResult: monthMeta.costPerResult,
+      },
+      dailySales: dailySalesBase.map(r => ({
+        ...r,
+        revenue: revenueByDay[r.date] ?? 0,
+        newChats: dailyChatsMap[r.date] ?? 0,
+        metaSpend: dailyMetaMap[r.date] ?? 0,
+      })),
       metaError: todayMeta.error ?? weekMeta.error ?? monthMeta.error ?? null,
     });
   } catch (err: unknown) {
