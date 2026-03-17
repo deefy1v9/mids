@@ -3,7 +3,7 @@ import { TenFrontClient, extractClienteInfo, Cliente } from '../tenfront/client'
 import { KommoClient } from '../kommo/client';
 import { writeLastSyncAt } from '../utils/state';
 import { readConfig } from '../utils/config';
-import { saveMatch } from '../utils/matches';
+import { saveMatch, matchExistsForLead } from '../utils/matches';
 import { logger } from '../utils/logger';
 import { SyncResult } from './syncWonLeads';
 
@@ -89,6 +89,11 @@ export async function syncDailyPage(page?: number): Promise<SyncResult & { page:
 
           for (const lead of openLeads) {
             try {
+              if (await matchExistsForLead(lead.id)) {
+                logger.info(`Lead #${lead.id} já sincronizado — ignorando.`);
+                continue;
+              }
+
               if (config.markAsWon) {
                 await kommo.markLeadAsWon(lead.id);
                 await saveMatch({

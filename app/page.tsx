@@ -122,6 +122,8 @@ export default function Dashboard() {
   const [savedOk, setSavedOk] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
+  const [syncPage, setSyncPage] = useState('195');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [retrying, setRetrying] = useState<string | null>(null);
   const [editPhone, setEditPhone] = useState<{ matchId: string; value: string } | null>(null);
   const [debugData, setDebugData] = useState<unknown>(null);
@@ -237,10 +239,19 @@ export default function Dashboard() {
   const runSync = async () => {
     setSyncing(true); setSyncResult(null);
     try {
-      const res = await fetch('/api/sync', { method: 'POST' });
+      const url = `/api/sync?fromPage=${encodeURIComponent(syncPage || '195')}`;
+      const res = await fetch(url, { method: 'POST' });
       setSyncResult(await res.json());
       await fetchAll();
     } finally { setSyncing(false); }
+  };
+
+  const deleteMatch = async (id: string) => {
+    setDeletingId(id);
+    try {
+      await fetch(`/api/matches/${id}`, { method: 'DELETE' });
+      setMatches(prev => prev.filter(m => m.id !== id));
+    } finally { setDeletingId(null); }
   };
 
   const runDebugClientes = async () => {
@@ -364,13 +375,22 @@ export default function Dashboard() {
             className="hidden sm:block text-xs text-gray-500 border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50 transition-colors dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800">
             Debug Clientes
           </button>
-          <button onClick={runSync} disabled={syncing}
-            className="flex items-center gap-1.5 text-sm font-semibold px-3 sm:px-4 py-1.5 rounded-xl transition-all disabled:opacity-60"
-            style={{ background: '#AEFF6E', color: '#111' }}>
-            {syncing
-              ? <><span className="w-3.5 h-3.5 border-2 border-gray-700 border-t-transparent rounded-full animate-spin" /><span className="hidden sm:inline">Sincronizando</span></>
-              : <><span>↻</span><span className="hidden sm:inline"> Sincronizar</span></>}
-          </button>
+          <div className="flex items-center gap-1.5">
+            <input
+              type="number" value={syncPage} onChange={e => setSyncPage(e.target.value)}
+              min={195} disabled={syncing}
+              className="w-16 text-xs text-center border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-300 disabled:opacity-50"
+              style={{ background: 'var(--surface-2)', color: 'var(--text-primary)', borderColor: 'var(--border-strong)' }}
+              title="Página do TenFront para sincronizar"
+            />
+            <button onClick={runSync} disabled={syncing}
+              className="flex items-center gap-1.5 text-sm font-semibold px-3 sm:px-4 py-1.5 rounded-xl transition-all disabled:opacity-60"
+              style={{ background: '#AEFF6E', color: '#111' }}>
+              {syncing
+                ? <><span className="w-3.5 h-3.5 border-2 border-gray-700 border-t-transparent rounded-full animate-spin" /><span className="hidden sm:inline">Sincronizando</span></>
+                : <><span>↻</span><span className="hidden sm:inline"> Sincronizar</span></>}
+            </button>
+          </div>
           <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
             style={{ background: '#6366f1' }}>TK</div>
         </div>
@@ -921,6 +941,16 @@ export default function Dashboard() {
 
                         {/* Actions */}
                         <div className="flex items-center gap-1 flex-shrink-0">
+                          <button
+                            onClick={() => deleteMatch(m.id)}
+                            disabled={deletingId === m.id}
+                            className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors disabled:opacity-40"
+                            title="Excluir registro">
+                            {deletingId === m.id
+                              ? <span className="w-3 h-3 border border-red-400 border-t-transparent rounded-full animate-spin" />
+                              : <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd"/></svg>
+                            }
+                          </button>
                           {canRetryDirect && (
                             <button onClick={() => retryMatch(m.id)} disabled={isRetrying}
                               className="text-xs px-2.5 py-1.5 rounded-lg font-medium transition-all disabled:opacity-40"

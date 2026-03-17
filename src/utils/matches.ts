@@ -62,6 +62,22 @@ export async function saveMatch(record: Omit<MatchRecord, 'id' | 'date'>): Promi
   return rowToRecord(rows[0]);
 }
 
+export async function deleteMatch(id: string): Promise<boolean> {
+  await ensureMigrated();
+  const { rowCount } = await pool.query('DELETE FROM matches WHERE id = $1', [id]);
+  return (rowCount ?? 0) > 0;
+}
+
+// Returns true if a successful match for this kommoLeadId already exists (prevents duplicates)
+export async function matchExistsForLead(kommoLeadId: number): Promise<boolean> {
+  await ensureMigrated();
+  const { rows } = await pool.query(
+    `SELECT 1 FROM matches WHERE kommo_lead_id = $1 AND action IN ('won','stage_moved') LIMIT 1`,
+    [kommoLeadId]
+  );
+  return rows.length > 0;
+}
+
 export async function listMatches(limit = 200): Promise<MatchRecord[]> {
   await ensureMigrated();
   const { rows } = await pool.query(

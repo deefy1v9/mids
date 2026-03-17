@@ -3,7 +3,7 @@ import { TenFrontClient, extractClienteInfo } from '../tenfront/client';
 import { KommoClient } from '../kommo/client';
 import { writeLastSyncAt } from '../utils/state';
 import { readConfig } from '../utils/config';
-import { saveMatch } from '../utils/matches';
+import { saveMatch, matchExistsForLead } from '../utils/matches';
 import { logger } from '../utils/logger';
 
 export interface SyncResult {
@@ -14,7 +14,7 @@ export interface SyncResult {
   errors: number;
 }
 
-export async function syncWonLeads(): Promise<SyncResult> {
+export async function syncWonLeads(fromPage?: number): Promise<SyncResult> {
   const result: SyncResult = { total: 0, matched: 0, updated: 0, notFound: 0, errors: 0 };
 
   const tenfront = new TenFrontClient();
@@ -30,7 +30,7 @@ export async function syncWonLeads(): Promise<SyncResult> {
   );
 
   // Página base: 195 = primeira página com clientes de 16/03/2026
-  const BASE_PAGE = 195;
+  const BASE_PAGE = fromPage ?? 195;
 
   let clientes: Awaited<ReturnType<typeof tenfront.listClientes>> = [];
   try {
@@ -91,6 +91,12 @@ export async function syncWonLeads(): Promise<SyncResult> {
 
           for (const lead of openLeads) {
             try {
+              // Skip duplicate: lead already processed successfully
+              if (await matchExistsForLead(lead.id)) {
+                logger.info(`Lead #${lead.id} já sincronizado — ignorando.`);
+                continue;
+              }
+
               if (config.markAsWon) {
                 await kommo.markLeadAsWon(lead.id);
                 await saveMatch({
