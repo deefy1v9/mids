@@ -182,6 +182,36 @@ export async function GET() {
       tenFrontError = String(e);
     }
 
+    // Dados mock para desenvolvimento local quando a API TenFront não está disponível
+    if (contasAReceber.length === 0) {
+      const sellers = ['André', 'Fabricio', 'Caio', 'Duda', 'Thiago'];
+      const d = (offset: number) => {
+        const dt = new Date(todayDate);
+        dt.setDate(dt.getDate() - offset);
+        return `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}/${dt.getFullYear()}`;
+      };
+      const mockEntries: ContaAReceber[] = [
+        // Hoje
+        { 'Forma': 'Dinheiro', 'Origem': 'ATE-M001', 'Descrição': 'ATE-M001 | Cliente Mock 1', 'Data recebimento': d(0), 'Conta': 'Padrão', 'Valor informado': 4500, 'Atendente': sellers[0] },
+        { 'Forma': 'Dinheiro', 'Origem': 'ATE-M002', 'Descrição': 'ATE-M002 | Cliente Mock 2', 'Data recebimento': d(0), 'Conta': 'Padrão', 'Valor informado': 3200, 'Atendente': sellers[1] },
+        { 'Forma': 'Dinheiro', 'Origem': 'ATE-M003', 'Descrição': 'ATE-M003 | Cliente Mock 3', 'Data recebimento': d(0), 'Conta': 'Padrão', 'Valor informado': 5100, 'Atendente': sellers[0] },
+        { 'Forma': 'Dinheiro', 'Origem': 'ATE-M004', 'Descrição': 'ATE-M004 | Cliente Mock 4', 'Data recebimento': d(0), 'Conta': 'Padrão', 'Valor informado': 2800, 'Atendente': sellers[2] },
+        { 'Forma': 'Dinheiro', 'Origem': 'ATE-M005', 'Descrição': 'ATE-M005 | Cliente Mock 5', 'Data recebimento': d(0), 'Conta': 'Padrão', 'Valor informado': 1900, 'Atendente': sellers[3] },
+        // Últimos 7 dias
+        ...([1,2,3,4,5,6].flatMap(day => [
+          { 'Forma': 'Dinheiro', 'Origem': `ATE-W${day}A`, 'Descrição': `ATE-W${day}A | Cliente W${day}A`, 'Data recebimento': d(day), 'Conta': 'Padrão', 'Valor informado': 3000 + day * 300, 'Atendente': sellers[day % sellers.length] },
+          { 'Forma': 'Dinheiro', 'Origem': `ATE-W${day}B`, 'Descrição': `ATE-W${day}B | Cliente W${day}B`, 'Data recebimento': d(day), 'Conta': 'Padrão', 'Valor informado': 2500 + day * 200, 'Atendente': sellers[(day + 1) % sellers.length] },
+          { 'Forma': 'Dinheiro', 'Origem': `ATE-W${day}C`, 'Descrição': `ATE-W${day}C | Cliente W${day}C`, 'Data recebimento': d(day), 'Conta': 'Padrão', 'Valor informado': 4000 + day * 100, 'Atendente': sellers[(day + 2) % sellers.length] },
+        ])),
+        // Dias 7-29
+        ...([7,8,10,12,14,16,18,20,22,24,26,28].flatMap(day => [
+          { 'Forma': 'Dinheiro', 'Origem': `ATE-M${day}A`, 'Descrição': `ATE-M${day}A | Cliente M${day}A`, 'Data recebimento': d(day), 'Conta': 'Padrão', 'Valor informado': 3500, 'Atendente': sellers[day % sellers.length] },
+          { 'Forma': 'Dinheiro', 'Origem': `ATE-M${day}B`, 'Descrição': `ATE-M${day}B | Cliente M${day}B`, 'Data recebimento': d(day), 'Conta': 'Padrão', 'Valor informado': 2900, 'Atendente': sellers[(day + 1) % sellers.length] },
+        ])),
+      ];
+      contasAReceber = mockEntries;
+    }
+
     const parseBRDate = (s: string) => {
       const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
       return m ? `${m[3]}-${m[2]}-${m[1]}` : null;
