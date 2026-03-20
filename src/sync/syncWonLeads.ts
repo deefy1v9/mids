@@ -76,7 +76,7 @@ export async function syncWonLeads(): Promise<SyncResult> {
     const celular = clienteInfo?.celular;
     const email = clienteInfo?.email;
     const valor = Number(conta['Valor informado'] ?? conta['Valor'] ?? 0) || undefined;
-    const rawDate = conta['Data compensação'] ?? conta['Data recebimento'] ?? '';
+    const rawDate = conta['Data compensação'] ?? '';
     const saleDate = parseBRDate(rawDate);
 
     if (!celular && !email) {
