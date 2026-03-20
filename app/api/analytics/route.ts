@@ -151,15 +151,38 @@ export async function GET() {
     const todayDate = new Date();
     const month30Ago = new Date(todayDate.getTime() - 30 * 86400000);
 
+    let tenFrontError: string | null = null;
     let contasAReceber: ContaAReceber[] = [];
+    const CACHE_KEY = 'tenfront_contas_30d';
+    const CACHE_TTL_HOURS = 6;
     try {
-      const tf = new TenFrontClient();
-      const timeout = new Promise<ContaAReceber[]>(resolve => setTimeout(() => resolve([]), 12000));
-      contasAReceber = await Promise.race([
-        tf.listContasAReceber(fmtBR(month30Ago), fmtBR(todayDate)),
-        timeout,
-      ]);
-    } catch { /* falha silenciosa — revenue fica 0 */ }
+      // Tenta usar cache do banco (TTL: 6h)
+      const { rows: cacheRows } = await pool.query(
+        `SELECT data FROM api_cache WHERE key = $1 AND cached_at > NOW() - INTERVAL '${CACHE_TTL_HOURS} hours'`,
+        [CACHE_KEY]
+      );
+      if (cacheRows.length > 0) {
+        contasAReceber = cacheRows[0].data as ContaAReceber[];
+      } else {
+        const tf = new TenFrontClient();
+        const timeout = new Promise<ContaAReceber[]>(resolve => setTimeout(() => resolve([]), 30000));
+        const fetched = await Promise.race([
+          tf.listContasAReceber(fmtBR(month30Ago), fmtBR(todayDate)),
+          timeout,
+        ]);
+        contasAReceber = fetched;
+        // Salva no cache apenas se trouxe dados
+        if (fetched.length > 0) {
+          await pool.query(
+            `INSERT INTO api_cache (key, data, cached_at) VALUES ($1, $2, NOW())
+             ON CONFLICT (key) DO UPDATE SET data = $2, cached_at = NOW()`,
+            [CACHE_KEY, JSON.stringify(fetched)]
+          );
+        }
+      }
+    } catch (e) {
+      tenFrontError = String(e);
+    }
 
     const parseBRDate = (s: string) => {
       const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
@@ -169,7 +192,7 @@ export async function GET() {
     const revenueByDay: Record<string, number> = {};
     for (const c of contasAReceber) {
       // Only count compensated transactions
-      if (c['Status'] && c['Status'] !== 'Compensado') continue;
+      if (c['Status'] && c['Status'].toLowerCase() !== 'compensado') continue;
       // Try both date field names
       const rawDate = c['Data compensação'] ?? c['Data recebimento'] ?? '';
       const day = parseBRDate(rawDate);
@@ -217,6 +240,8 @@ export async function GET() {
         metaSpend: dailyMetaMap[r.date] ?? 0,
       })),
       metaError: todayMeta.error ?? weekMeta.error ?? monthMeta.error ?? null,
+      tenFrontError,
+      tenFrontCount: contasAReceber.length,
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);

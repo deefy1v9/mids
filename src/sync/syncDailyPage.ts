@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { TenFrontClient, extractClienteInfo, Cliente } from '../tenfront/client';
+import { TenFrontClient, extractClienteName, normalizeName, ContaAReceber } from '../tenfront/client';
 import { KommoClient } from '../kommo/client';
 import { writeLastSyncAt } from '../utils/state';
 import { readConfig } from '../utils/config';
@@ -7,61 +7,80 @@ import { saveMatch, matchExistsForLead } from '../utils/matches';
 import { logger } from '../utils/logger';
 import { SyncResult } from './syncWonLeads';
 
-// Dia 0 (16/03/2026) = página 195. Cada dia +1 página.
-const BASE_DATE = new Date('2026-03-16T00:00:00');
-const BASE_PAGE = 195;
+const fmtBR = (d: Date) =>
+  `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
 
-export function calcDailyPage(): number {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const dayOffset = Math.floor((today.getTime() - BASE_DATE.getTime()) / 86400000);
-  return BASE_PAGE + Math.max(0, dayOffset);
-}
+const parseBRDate = (s: string): string | undefined => {
+  const m = s?.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : undefined;
+};
 
-export async function syncDailyPage(page?: number): Promise<SyncResult & { page: number }> {
-  const result: SyncResult & { page: number } = {
-    total: 0, matched: 0, updated: 0, notFound: 0, errors: 0, page: 0,
+export async function syncDailyPage(): Promise<SyncResult & { date: string }> {
+  const result: SyncResult & { date: string } = {
+    total: 0, matched: 0, updated: 0, notFound: 0, errors: 0, date: '',
   };
 
-  const targetPage = page ?? calcDailyPage();
-  result.page = targetPage;
+  const today = new Date();
+  const todayStr = fmtBR(today);
+  result.date = todayStr;
 
   const tenfront = new TenFrontClient();
   const kommo = new KommoClient();
   const config = await readConfig();
   const syncStartedAt = new Date().toISOString();
 
-  logger.info(`=== Sync diário — página ${targetPage} ===`);
+  logger.info(`=== Sync diário — ${todayStr} (contas compensadas hoje + clientes → Kommo) ===`);
   logger.info(
     config.markAsWon
       ? 'Ação: marcar como GANHO'
       : `Ação: mover para pipeline ${config.pipelineId} / etapa ${config.stageId}`
   );
 
-  let clientes: Cliente[] = [];
+  // 1. Busca contas a receber de hoje e filtra compensadas
+  let contasAReceber: ContaAReceber[] = [];
   try {
-    clientes = await tenfront.fetchClientePage(targetPage);
-    logger.info(`Página ${targetPage}: ${clientes.length} clientes encontrados`);
+    const all = await tenfront.listContasAReceber(todayStr, todayStr);
+    contasAReceber = all.filter(
+      c => !c['Status'] || c['Status'].toLowerCase() === 'compensado'
+    );
+    logger.info(`${contasAReceber.length} contas compensadas hoje`);
   } catch (err) {
-    logger.error('Falha ao buscar página do TenFront:', err);
+    logger.error('Falha ao buscar contas a receber:', err);
     return result;
   }
 
-  result.total = clientes.length;
-
-  if (clientes.length === 0) {
-    logger.info('Página vazia — nenhum cliente novo hoje.');
+  if (contasAReceber.length === 0) {
+    logger.info('Nenhuma conta compensada hoje.');
     await writeLastSyncAt(syncStartedAt);
     return result;
   }
 
-  for (const cliente of clientes) {
-    const info = extractClienteInfo(cliente);
-    if (!info?.clienteName) continue;
+  // 2. Busca mapa de clientes: nome normalizado → { celular, email }
+  let clientesMap: Awaited<ReturnType<typeof tenfront.buildClientesMap>>;
+  try {
+    clientesMap = await tenfront.buildClientesMap();
+    logger.info(`Mapa de clientes: ${clientesMap.size} entradas`);
+  } catch (err) {
+    logger.error('Falha ao buscar clientes:', err);
+    return result;
+  }
 
-    const { clienteName, celular, email, registrationDate } = info;
+  result.total = contasAReceber.length;
+
+  // 3. Para cada conta, resolve telefone via clientes e sincroniza no Kommo
+  for (const conta of contasAReceber) {
+    const clienteName = extractClienteName(conta);
+    if (!clienteName) continue;
+
+    const clienteInfo = clientesMap.get(normalizeName(clienteName));
+    const celular = clienteInfo?.celular;
+    const email = clienteInfo?.email;
+    const valor = Number(conta['Valor informado'] ?? conta['Valor'] ?? 0) || undefined;
+    const rawDate = conta['Data compensação'] ?? conta['Data recebimento'] ?? '';
+    const saleDate = parseBRDate(rawDate);
 
     if (!celular && !email) {
+      await saveMatch({ contaId: clienteName, clienteName, valor, action: 'not_found' });
       result.notFound++;
       continue;
     }
@@ -97,21 +116,21 @@ export async function syncDailyPage(page?: number): Promise<SyncResult & { page:
               if (config.markAsWon) {
                 await kommo.markLeadAsWon(lead.id);
                 await saveMatch({
-                  contaId: clienteName, clienteName, phone: celular, email,
+                  contaId: clienteName, clienteName, phone: celular, email, valor,
                   kommoContactId: contact.id, kommoContactName: contact.name,
                   kommoLeadId: lead.id, kommoLeadName: lead.name,
                   action: 'won',
-                }, registrationDate);
-                logger.success(`Lead #${lead.id} "${lead.name}" → GANHO  (${clienteName})`);
+                }, saleDate);
+                logger.success(`Lead #${lead.id} "${lead.name}" → GANHO (${clienteName}, R$${valor ?? 0})`);
               } else if (config.pipelineId && config.stageId) {
                 await kommo.moveLeadToStage(lead.id, config.pipelineId, config.stageId);
                 await saveMatch({
-                  contaId: clienteName, clienteName, phone: celular, email,
+                  contaId: clienteName, clienteName, phone: celular, email, valor,
                   kommoContactId: contact.id, kommoContactName: contact.name,
                   kommoLeadId: lead.id, kommoLeadName: lead.name,
                   action: 'stage_moved', pipelineId: config.pipelineId, stageId: config.stageId,
-                }, registrationDate);
-                logger.success(`Lead #${lead.id} "${lead.name}" → etapa ${config.stageId}  (${clienteName})`);
+                }, saleDate);
+                logger.success(`Lead #${lead.id} "${lead.name}" → etapa ${config.stageId} (${clienteName})`);
               } else {
                 logger.warn('Configuração incompleta: markAsWon=false mas pipelineId/stageId não definidos.');
                 continue;
@@ -120,7 +139,7 @@ export async function syncDailyPage(page?: number): Promise<SyncResult & { page:
             } catch (err) {
               const msg = err instanceof Error ? err.message : String(err);
               await saveMatch({
-                contaId: clienteName, clienteName, phone: celular, email,
+                contaId: clienteName, clienteName, phone: celular, email, valor,
                 kommoContactId: contact.id, kommoContactName: contact.name,
                 kommoLeadId: lead.id, kommoLeadName: lead.name,
                 action: 'error', errorMessage: msg,
@@ -137,7 +156,7 @@ export async function syncDailyPage(page?: number): Promise<SyncResult & { page:
     }
 
     if (!foundContact) {
-      await saveMatch({ contaId: clienteName, clienteName, phone: celular, email, action: 'not_found' });
+      await saveMatch({ contaId: clienteName, clienteName, phone: celular, email, valor, action: 'not_found' });
       result.notFound++;
     }
   }
@@ -146,7 +165,7 @@ export async function syncDailyPage(page?: number): Promise<SyncResult & { page:
 
   logger.info('=== Sync diário concluído ===');
   logger.info(
-    `Página: ${targetPage} | Total: ${result.total} | Encontrados: ${result.matched} | Atualizados: ${result.updated} | Não encontrados: ${result.notFound} | Erros: ${result.errors}`
+    `Data: ${todayStr} | Total: ${result.total} | Encontrados: ${result.matched} | Atualizados: ${result.updated} | Não encontrados: ${result.notFound} | Erros: ${result.errors}`
   );
 
   return result;

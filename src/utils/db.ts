@@ -49,6 +49,12 @@ async function migrate(): Promise<void> {
         stage_id     BIGINT,
         updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
+
+      CREATE TABLE IF NOT EXISTS api_cache (
+        key       TEXT PRIMARY KEY,
+        data      JSONB NOT NULL,
+        cached_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
     `);
 
     // Importar matches.json se tabela vazia

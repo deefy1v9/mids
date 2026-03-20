@@ -13,9 +13,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const pageParam = req.nextUrl.searchParams.get('page');
-    const page = pageParam ? parseInt(pageParam) : undefined;
-    const result = await syncDailyPage(page);
+    const result = await syncDailyPage();
     return NextResponse.json(result);
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });
@@ -23,11 +21,9 @@ export async function GET(req: NextRequest) {
 }
 
 // POST manual (painel ou teste)
-export async function POST(req: NextRequest) {
+export async function POST(_req: NextRequest) {
   try {
-    const pageParam = req.nextUrl.searchParams.get('page');
-    const page = pageParam ? parseInt(pageParam) : undefined;
-    const result = await syncDailyPage(page);
+    const result = await syncDailyPage();
     return NextResponse.json(result);
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });

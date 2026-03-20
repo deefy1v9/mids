@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { TenFrontClient, extractClienteInfo } from '../tenfront/client';
+import { TenFrontClient, extractClienteName, normalizeName, ContaAReceber } from '../tenfront/client';
 import { KommoClient } from '../kommo/client';
 import { writeLastSyncAt } from '../utils/state';
 import { readConfig } from '../utils/config';
@@ -14,7 +14,15 @@ export interface SyncResult {
   errors: number;
 }
 
-export async function syncWonLeads(fromPage?: number): Promise<SyncResult> {
+const fmtBR = (d: Date) =>
+  `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+
+const parseBRDate = (s: string): string | undefined => {
+  const m = s?.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : undefined;
+};
+
+export async function syncWonLeads(): Promise<SyncResult> {
   const result: SyncResult = { total: 0, matched: 0, updated: 0, notFound: 0, errors: 0 };
 
   const tenfront = new TenFrontClient();
@@ -22,48 +30,59 @@ export async function syncWonLeads(fromPage?: number): Promise<SyncResult> {
   const config = await readConfig();
   const syncStartedAt = new Date().toISOString();
 
-  logger.info('=== Iniciando sincronização (listar-clientes → Kommo por telefone) ===');
+  logger.info('=== Iniciando sincronização (contas a receber + clientes → Kommo) ===');
   logger.info(
     config.markAsWon
       ? 'Ação: marcar como GANHO'
       : `Ação: mover para pipeline ${config.pipelineId} / etapa ${config.stageId}`
   );
 
-  // Página base: 195 = primeira página com clientes de 16/03/2026
-  const BASE_PAGE = fromPage ?? 195;
-
-  let clientes: Awaited<ReturnType<typeof tenfront.listClientes>> = [];
+  // 1. Busca contas a receber (últimos 30 dias) e filtra compensadas
+  const today = new Date();
+  const month30Ago = new Date(today.getTime() - 30 * 86400000);
+  let contasAReceber: ContaAReceber[] = [];
   try {
-    const all: typeof clientes = [];
-    let page = BASE_PAGE;
-    while (true) {
-      const items = await tenfront.fetchClientePage(page);
-      if (items.length === 0) break;
-      all.push(...items);
-      page++;
-    }
-    clientes = all;
-    logger.info(`${clientes.length} clientes encontrados (páginas ${BASE_PAGE}–${page - 1})`);
+    const all = await tenfront.listContasAReceber(fmtBR(month30Ago), fmtBR(today));
+    contasAReceber = all.filter(
+      c => !c['Status'] || c['Status'].toLowerCase() === 'compensado'
+    );
+    logger.info(`${contasAReceber.length} contas compensadas encontradas`);
   } catch (err) {
-    logger.error('Falha ao buscar clientes do TenFront:', err);
+    logger.error('Falha ao buscar contas a receber:', err);
     return result;
   }
 
-  result.total = clientes.length;
-  logger.info(`${clientes.length} clientes carregados do TenFront.`);
-
-  if (clientes.length === 0) {
+  if (contasAReceber.length === 0) {
     await writeLastSyncAt(syncStartedAt);
     return result;
   }
 
-  for (const cliente of clientes) {
-    const info = extractClienteInfo(cliente);
-    if (!info?.clienteName) continue;
+  // 2. Busca mapa de clientes: nome normalizado → { celular, email }
+  let clientesMap: Awaited<ReturnType<typeof tenfront.buildClientesMap>>;
+  try {
+    clientesMap = await tenfront.buildClientesMap();
+    logger.info(`Mapa de clientes: ${clientesMap.size} entradas`);
+  } catch (err) {
+    logger.error('Falha ao buscar clientes:', err);
+    return result;
+  }
 
-    const { clienteName, celular, email, registrationDate } = info;
+  result.total = contasAReceber.length;
+
+  // 3. Para cada conta, resolve telefone via clientes e sincroniza no Kommo
+  for (const conta of contasAReceber) {
+    const clienteName = extractClienteName(conta);
+    if (!clienteName) continue;
+
+    const clienteInfo = clientesMap.get(normalizeName(clienteName));
+    const celular = clienteInfo?.celular;
+    const email = clienteInfo?.email;
+    const valor = Number(conta['Valor informado'] ?? conta['Valor'] ?? 0) || undefined;
+    const rawDate = conta['Data compensação'] ?? conta['Data recebimento'] ?? '';
+    const saleDate = parseBRDate(rawDate);
 
     if (!celular && !email) {
+      await saveMatch({ contaId: clienteName, clienteName, valor, action: 'not_found' });
       result.notFound++;
       continue;
     }
@@ -91,7 +110,6 @@ export async function syncWonLeads(fromPage?: number): Promise<SyncResult> {
 
           for (const lead of openLeads) {
             try {
-              // Skip duplicate: lead already processed successfully
               if (await matchExistsForLead(lead.id)) {
                 logger.info(`Lead #${lead.id} já sincronizado — ignorando.`);
                 continue;
@@ -100,21 +118,21 @@ export async function syncWonLeads(fromPage?: number): Promise<SyncResult> {
               if (config.markAsWon) {
                 await kommo.markLeadAsWon(lead.id);
                 await saveMatch({
-                  contaId: clienteName, clienteName, phone: celular, email,
+                  contaId: clienteName, clienteName, phone: celular, email, valor,
                   kommoContactId: contact.id, kommoContactName: contact.name,
                   kommoLeadId: lead.id, kommoLeadName: lead.name,
                   action: 'won',
-                }, registrationDate);
-                logger.success(`Lead #${lead.id} "${lead.name}" → GANHO  (${clienteName})`);
+                }, saleDate);
+                logger.success(`Lead #${lead.id} "${lead.name}" → GANHO (${clienteName}, R$${valor ?? 0})`);
               } else if (config.pipelineId && config.stageId) {
                 await kommo.moveLeadToStage(lead.id, config.pipelineId, config.stageId);
                 await saveMatch({
-                  contaId: clienteName, clienteName, phone: celular, email,
+                  contaId: clienteName, clienteName, phone: celular, email, valor,
                   kommoContactId: contact.id, kommoContactName: contact.name,
                   kommoLeadId: lead.id, kommoLeadName: lead.name,
                   action: 'stage_moved', pipelineId: config.pipelineId, stageId: config.stageId,
-                }, registrationDate);
-                logger.success(`Lead #${lead.id} "${lead.name}" → etapa ${config.stageId}  (${clienteName})`);
+                }, saleDate);
+                logger.success(`Lead #${lead.id} "${lead.name}" → etapa ${config.stageId} (${clienteName})`);
               } else {
                 logger.warn('Configuração incompleta: markAsWon=false mas pipelineId/stageId não definidos.');
                 continue;
@@ -123,7 +141,7 @@ export async function syncWonLeads(fromPage?: number): Promise<SyncResult> {
             } catch (err) {
               const msg = err instanceof Error ? err.message : String(err);
               await saveMatch({
-                contaId: clienteName, clienteName, phone: celular, email,
+                contaId: clienteName, clienteName, phone: celular, email, valor,
                 kommoContactId: contact.id, kommoContactName: contact.name,
                 kommoLeadId: lead.id, kommoLeadName: lead.name,
                 action: 'error', errorMessage: msg,
@@ -140,7 +158,7 @@ export async function syncWonLeads(fromPage?: number): Promise<SyncResult> {
     }
 
     if (!foundContact) {
-      await saveMatch({ contaId: clienteName, clienteName, phone: celular, email, action: 'not_found' });
+      await saveMatch({ contaId: clienteName, clienteName, phone: celular, email, valor, action: 'not_found' });
       result.notFound++;
     }
   }
