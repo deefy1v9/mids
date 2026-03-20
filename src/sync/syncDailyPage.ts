@@ -39,9 +39,8 @@ export async function syncDailyPage(): Promise<SyncResult & { date: string }> {
   // 1. Busca contas a receber de hoje e filtra compensadas
   let contasAReceber: ContaAReceber[] = [];
   try {
-    const all = await tenfront.listContasAReceber(todayStr, todayStr);
-    contasAReceber = all.filter(c => c['Status']?.toLowerCase() === 'compensado');
-    logger.info(`${contasAReceber.length} contas compensadas hoje`);
+    contasAReceber = await tenfront.listContasAReceber(todayStr, todayStr);
+    logger.info(`${contasAReceber.length} contas encontradas hoje`);
   } catch (err) {
     logger.error('Falha ao buscar contas a receber:', err);
     return result;
@@ -73,8 +72,8 @@ export async function syncDailyPage(): Promise<SyncResult & { date: string }> {
     const clienteInfo = clientesMap.get(normalizeName(clienteName));
     const celular = clienteInfo?.celular;
     const email = clienteInfo?.email;
-    const valor = Number(conta['Valor informado'] ?? conta['Valor'] ?? 0) || undefined;
-    const rawDate = conta['Data compensação'] ?? '';
+    const valor = Number(conta['Valor informado'] ?? 0) || undefined;
+    const rawDate = conta['Data recebimento'] ?? '';
     const saleDate = parseBRDate(rawDate);
 
     if (!celular && !email) {

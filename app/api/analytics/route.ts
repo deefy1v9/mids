@@ -171,14 +171,12 @@ export async function GET() {
           timeout,
         ]);
         contasAReceber = fetched;
-        // Salva no cache apenas se trouxe dados
-        if (fetched.length > 0) {
-          await pool.query(
-            `INSERT INTO api_cache (key, data, cached_at) VALUES ($1, $2, NOW())
-             ON CONFLICT (key) DO UPDATE SET data = $2, cached_at = NOW()`,
-            [CACHE_KEY, JSON.stringify(fetched)]
-          );
-        }
+        // Salva no cache (mesmo vazio) para evitar hammering da API em caso de rate limit
+        await pool.query(
+          `INSERT INTO api_cache (key, data, cached_at) VALUES ($1, $2, NOW())
+           ON CONFLICT (key) DO UPDATE SET data = $2, cached_at = NOW()`,
+          [CACHE_KEY, JSON.stringify(fetched)]
+        );
       }
     } catch (e) {
       tenFrontError = String(e);
@@ -189,17 +187,41 @@ export async function GET() {
       return m ? `${m[3]}-${m[2]}-${m[1]}` : null;
     };
 
+    type SellerEntry = { nome: string; vendas: number; faturamento: number };
     const revenueByDay: Record<string, number> = {};
+    const sellerByDay: Record<string, Record<string, SellerEntry>> = {};
+
     for (const c of contasAReceber) {
-      // Only count compensated transactions with a confirmed compensation date
-      if (c['Status']?.toLowerCase() !== 'compensado') continue;
-      const rawDate = c['Data compensação'] ?? '';
+      const rawDate = c['Data recebimento'] ?? '';
       const day = parseBRDate(rawDate);
       if (!day) continue;
-      // Try both value field names
-      const valor = c['Valor informado'] ?? c['Valor'] ?? 0;
-      revenueByDay[day] = (revenueByDay[day] ?? 0) + Number(valor);
+      const valor = Number(c['Valor informado'] ?? 0);
+      if (valor <= 0) continue;
+      revenueByDay[day] = (revenueByDay[day] ?? 0) + valor;
+
+      const atendente = String(c['Atendente'] ?? '').trim();
+      if (atendente) {
+        if (!sellerByDay[day]) sellerByDay[day] = {};
+        const e = sellerByDay[day][atendente] ?? { nome: atendente, vendas: 0, faturamento: 0 };
+        e.vendas++;
+        e.faturamento += valor;
+        sellerByDay[day][atendente] = e;
+      }
     }
+
+    const buildRanking = (from: string): SellerEntry[] => {
+      const merged: Record<string, SellerEntry> = {};
+      for (const [day, sellers] of Object.entries(sellerByDay)) {
+        if (day < from) continue;
+        for (const [nome, s] of Object.entries(sellers)) {
+          const cur = merged[nome] ?? { nome, vendas: 0, faturamento: 0 };
+          cur.vendas += s.vendas;
+          cur.faturamento += s.faturamento;
+          merged[nome] = cur;
+        }
+      }
+      return Object.values(merged).sort((a, b) => b.faturamento - a.faturamento);
+    };
 
     const sumRevenue = (from: string) =>
       Object.entries(revenueByDay)
@@ -221,16 +243,19 @@ export async function GET() {
         sales: aggregate(today).sales, revenue: todayRevenue, lucro: todayRevenue - todayMeta.spend,
         newChats: calcChats(dayTs), avgResponseMinutes: calcAvgResponse(dayTs),
         metaSpend: todayMeta.spend, metaResults: todayMeta.results, metaCostPerResult: todayMeta.costPerResult,
+        ranking: buildRanking(today),
       },
       week: {
         sales: aggregate(weekAgo).sales, revenue: weekRevenue, lucro: weekRevenue - weekMeta.spend,
         newChats: calcChats(weekTs), avgResponseMinutes: calcAvgResponse(weekTs),
         metaSpend: weekMeta.spend, metaResults: weekMeta.results, metaCostPerResult: weekMeta.costPerResult,
+        ranking: buildRanking(weekAgo),
       },
       month: {
         sales: aggregate(monthAgo).sales, revenue: monthRevenue, lucro: monthRevenue - monthMeta.spend,
         newChats: calcChats(monthTs), avgResponseMinutes: calcAvgResponse(monthTs),
         metaSpend: monthMeta.spend, metaResults: monthMeta.results, metaCostPerResult: monthMeta.costPerResult,
+        ranking: buildRanking(monthAgo),
       },
       dailySales: dailySalesBase.map(r => ({
         ...r,

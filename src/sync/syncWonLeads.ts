@@ -42,9 +42,8 @@ export async function syncWonLeads(): Promise<SyncResult> {
   const month30Ago = new Date(today.getTime() - 30 * 86400000);
   let contasAReceber: ContaAReceber[] = [];
   try {
-    const all = await tenfront.listContasAReceber(fmtBR(month30Ago), fmtBR(today));
-    contasAReceber = all.filter(c => c['Status']?.toLowerCase() === 'compensado');
-    logger.info(`${contasAReceber.length} contas compensadas encontradas`);
+    contasAReceber = await tenfront.listContasAReceber(fmtBR(month30Ago), fmtBR(today));
+    logger.info(`${contasAReceber.length} contas encontradas`);
   } catch (err) {
     logger.error('Falha ao buscar contas a receber:', err);
     return result;
@@ -75,8 +74,8 @@ export async function syncWonLeads(): Promise<SyncResult> {
     const clienteInfo = clientesMap.get(normalizeName(clienteName));
     const celular = clienteInfo?.celular;
     const email = clienteInfo?.email;
-    const valor = Number(conta['Valor informado'] ?? conta['Valor'] ?? 0) || undefined;
-    const rawDate = conta['Data compensação'] ?? '';
+    const valor = Number(conta['Valor informado'] ?? 0) || undefined;
+    const rawDate = conta['Data recebimento'] ?? '';
     const saleDate = parseBRDate(rawDate);
 
     if (!celular && !email) {

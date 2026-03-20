@@ -59,7 +59,8 @@ interface KommoPipeline { id: number; name: string; _embedded: { statuses: Kommo
 interface SyncConfig { markAsWon: boolean; pipelineId?: number; stageId?: number; }
 interface SyncResult { total: number; matched: number; updated: number; notFound: number; errors: number; }
 
-interface AnalyticsPeriod { sales: number; revenue: number; lucro?: number; newChats: number; avgResponseMinutes: number; metaSpend: number; metaResults?: number; metaCostPerResult?: number; }
+interface SellerEntry { nome: string; vendas: number; faturamento: number; }
+interface AnalyticsPeriod { sales: number; revenue: number; lucro?: number; newChats: number; avgResponseMinutes: number; metaSpend: number; metaResults?: number; metaCostPerResult?: number; ranking?: SellerEntry[]; }
 interface AnalyticsData {
   today: AnalyticsPeriod; week: AnalyticsPeriod; month: AnalyticsPeriod;
   dailySales: { date: string; sales: number; revenue: number; newChats: number; metaSpend: number }[];
@@ -637,6 +638,46 @@ export default function Dashboard() {
                         )}
                       </div>
                     </div>
+
+                    {/* Ranking de Vendedores */}
+                    {(() => {
+                      const ranking = analyticsData[analyticsPeriod].ranking ?? [];
+                      if (ranking.length === 0) return null;
+                      const medals = ['🥇', '🥈', '🥉'];
+                      return (
+                        <div className="mt-3 sm:mt-4 rounded-2xl p-5 border shadow-sm relative overflow-hidden"
+                          style={{ background: '#111827', borderColor: '#1f2937' }}>
+                          <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full opacity-20"
+                            style={{ background: '#AEFF6E', filter: 'blur(30px)' }} />
+                          <div className="relative">
+                            <p className="text-xs text-gray-400 font-medium uppercase tracking-wide mb-4">
+                              Ranking de Vendedores
+                            </p>
+                            <div className="flex flex-col gap-3">
+                              {ranking.map((s, i) => (
+                                <div key={s.nome} className="flex items-center gap-3">
+                                  <span className="text-base w-6 text-center flex-shrink-0">
+                                    {medals[i] ?? `${i + 1}°`}
+                                  </span>
+                                  <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0"
+                                    style={{ background: i === 0 ? '#AEFF6E' : '#1f2937', color: i === 0 ? '#111' : '#9ca3af' }}>
+                                    {s.nome.charAt(0).toUpperCase()}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-semibold text-white truncate">{s.nome}</p>
+                                    <p className="text-xs text-gray-500">{s.vendas} {s.vendas === 1 ? 'venda' : 'vendas'}</p>
+                                  </div>
+                                  <p className="text-sm font-bold flex-shrink-0"
+                                    style={{ color: i === 0 ? '#AEFF6E' : '#d1d5db' }}>
+                                    {formatCurrency(s.faturamento)}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </>
                 );
               })()}

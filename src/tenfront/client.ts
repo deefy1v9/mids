@@ -6,13 +6,10 @@ export interface ContaAReceber {
   'Forma': string;
   'Forma de pagamento'?: string;
   'Origem': string;
-  'Descrição': string;        // "ATE-XXXXXXX | Nome do Cliente"
-  'Data recebimento'?: string; // "DD/MM/YYYY"
-  'Data compensação'?: string; // "DD/MM/YYYY" — campo alternativo
+  'Descrição': string;         // "ATE-XXXXXXX | Nome do Cliente"
+  'Data recebimento': string;  // "DD/MM/YYYY" — data real do recebimento
   'Conta': string;
-  'Valor informado'?: number;
-  'Valor'?: number;           // campo alternativo
-  'Status'?: string;          // "Compensado" | outros
+  'Valor informado': number;   // valor recebido
   'Atendente': string;
   [key: string]: unknown;
 }
