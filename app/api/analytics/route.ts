@@ -192,7 +192,7 @@ export async function GET() {
     const revenueByDay: Record<string, number> = {};
     for (const c of contasAReceber) {
       // Only count compensated transactions
-      if (c['Status'] && c['Status'].toLowerCase() !== 'compensado') continue;
+      if (c['Status']?.toLowerCase() !== 'compensado') continue;
       // Try both date field names
       const rawDate = c['Data compensação'] ?? c['Data recebimento'] ?? '';
       const day = parseBRDate(rawDate);

@@ -43,9 +43,7 @@ export async function syncWonLeads(): Promise<SyncResult> {
   let contasAReceber: ContaAReceber[] = [];
   try {
     const all = await tenfront.listContasAReceber(fmtBR(month30Ago), fmtBR(today));
-    contasAReceber = all.filter(
-      c => !c['Status'] || c['Status'].toLowerCase() === 'compensado'
-    );
+    contasAReceber = all.filter(c => c['Status']?.toLowerCase() === 'compensado');
     logger.info(`${contasAReceber.length} contas compensadas encontradas`);
   } catch (err) {
     logger.error('Falha ao buscar contas a receber:', err);
