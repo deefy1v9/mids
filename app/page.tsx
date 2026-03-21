@@ -129,7 +129,7 @@ export default function Dashboard() {
   const [savedOk, setSavedOk] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
-  const [syncPage, setSyncPage] = useState('195');
+  const [syncPage, setSyncPage] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [retrying, setRetrying] = useState<string | null>(null);
   const [editPhone, setEditPhone] = useState<{ matchId: string; value: string } | null>(null);
@@ -264,7 +264,7 @@ export default function Dashboard() {
   const runSync = async () => {
     setSyncing(true); setSyncResult(null);
     try {
-      const url = `/api/sync?fromPage=${encodeURIComponent(syncPage || '195')}`;
+      const url = syncPage ? `/api/sync?fromPage=${encodeURIComponent(syncPage)}` : '/api/sync';
       const res = await fetch(url, { method: 'POST' });
       setSyncResult(await res.json());
       await fetchAll();
@@ -481,6 +481,7 @@ export default function Dashboard() {
             style={{ background: isDark ? '#0d2010' : '#F7FFF0', borderColor: '#AEFF6E' }}>
             <span className="font-semibold text-gray-800">Sincronização concluída</span>
             <div className="flex flex-wrap gap-3 sm:contents">
+              {'page' in syncResult && <span className="text-gray-500 text-xs">pág. {(syncResult as SyncResult & { page: number }).page}</span>}
               <span className="text-gray-600"><b className="text-gray-900">{syncResult.total}</b> clientes</span>
               <span style={{ color: '#16a34a' }}><b>{syncResult.updated}</b> atualizados</span>
               <span className="text-amber-600"><b>{syncResult.notFound}</b> não encontrados</span>

@@ -39,14 +39,24 @@ export async function syncDailyPage(page?: number): Promise<SyncResult & { page:
   );
 
   let clientes: Cliente[] = [];
+  let usedPage = targetPage;
   try {
     clientes = await tenfront.fetchClientePage(targetPage);
     logger.info(`Página ${targetPage}: ${clientes.length} clientes encontrados`);
+    // Se a página calculada estiver vazia e não foi especificada manualmente, tenta page-1
+    if (clientes.length === 0 && page === undefined && targetPage > 1) {
+      const fallbackPage = targetPage - 1;
+      logger.info(`Página ${targetPage} vazia — tentando página anterior ${fallbackPage}`);
+      clientes = await tenfront.fetchClientePage(fallbackPage);
+      usedPage = fallbackPage;
+      logger.info(`Página ${fallbackPage}: ${clientes.length} clientes encontrados`);
+    }
   } catch (err) {
     logger.error('Falha ao buscar página do TenFront:', err);
     return result;
   }
 
+  result.page = usedPage;
   result.total = clientes.length;
 
   if (clientes.length === 0) {
