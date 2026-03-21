@@ -60,12 +60,18 @@ interface SyncConfig { markAsWon: boolean; pipelineId?: number; stageId?: number
 interface SyncResult { total: number; matched: number; updated: number; notFound: number; errors: number; }
 
 interface SellerEntry { nome: string; vendas: number; faturamento: number; }
-interface AnalyticsPeriod { sales: number; revenue: number; lucro?: number; newChats: number; avgResponseMinutes: number; metaSpend: number; metaResults?: number; metaCostPerResult?: number; ranking?: SellerEntry[]; }
-interface AnalyticsData {
-  today: AnalyticsPeriod; week: AnalyticsPeriod; month: AnalyticsPeriod;
+interface PeriodData {
+  period: 'today' | 'week' | 'month';
+  sales: number; revenue: number; lucro: number;
+  newChats: number; avgResponseMinutes: number;
+  metaSpend: number; metaResults: number; metaCostPerResult: number;
+  ranking: SellerEntry[];
   dailySales: { date: string; sales: number; revenue: number; newChats: number; metaSpend: number }[];
   metaError?: string | null;
+  tenFrontError?: string | null;
+  tenFrontCount?: number;
 }
+type AnalyticsCache = Record<'today' | 'week' | 'month', PeriodData | null>;
 
 function formatCurrency(val?: number) {
   if (val === undefined || val === null) return '—';
@@ -140,21 +146,34 @@ export default function Dashboard() {
   const [talkMessages, setTalkMessages] = useState<TalkMessage[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [messagesRaw, setMessagesRaw] = useState<unknown>(null);
-  const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(() => {
-    try {
-      const raw = typeof window !== 'undefined' ? localStorage.getItem('mids_analytics') : null;
-      if (!raw) return null;
-      const parsed = JSON.parse(raw) as AnalyticsData;
-      // Invalidate cache if format is outdated
-      if (!parsed.today || !parsed.week || !parsed.month || !Array.isArray(parsed.dailySales) || parsed.today?.lucro === undefined) {
-        try { localStorage.removeItem('mids_analytics'); } catch { /* ignore */ }
-        return null;
-      }
-      return parsed;
-    } catch { return null; }
+  const [analyticsCache, setAnalyticsCache] = useState<AnalyticsCache>(() => {
+    const load = (p: string): PeriodData | null => {
+      try {
+        if (typeof window === 'undefined') return null;
+        const raw = localStorage.getItem(`mids_analytics_${p}`);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw) as PeriodData;
+        if (parsed.period !== p || parsed.revenue === undefined) return null;
+        return parsed;
+      } catch { return null; }
+    };
+    try { localStorage.removeItem('mids_analytics'); } catch { /* ignore */ }
+    return { today: load('today'), week: load('week'), month: load('month') };
   });
   const [analyticsPeriod, setAnalyticsPeriod] = useState<'today' | 'week' | 'month'>('today');
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
+  const analyticsData = analyticsCache[analyticsPeriod];
+
+  const fetchAnalytics = useCallback(async (p: 'today' | 'week' | 'month') => {
+    setLoadingAnalytics(true);
+    try {
+      const res = await fetch(`/api/analytics?period=${p}`);
+      const data = await res.json() as PeriodData;
+      if (!data?.period) return;
+      setAnalyticsCache(prev => ({ ...prev, [p]: data }));
+      try { localStorage.setItem(`mids_analytics_${p}`, JSON.stringify(data)); } catch { /* ignore */ }
+    } catch { } finally { setLoadingAnalytics(false); }
+  }, []);
 
   const fetchAll = useCallback(async () => {
     const [matchRes, configRes] = await Promise.all([
@@ -203,18 +222,10 @@ export default function Dashboard() {
   }, [activeTab, chatData, loadingChat]);
 
   useEffect(() => {
-    if (activeTab === 'overview' && !analyticsData && !loadingAnalytics) {
-      setLoadingAnalytics(true);
-      fetch('/api/analytics').then(r => r.json())
-        .then(d => {
-          if (!d?.today || !d?.week || !d?.month) return;
-          setAnalyticsData(d);
-          try { localStorage.setItem('mids_analytics', JSON.stringify(d)); } catch { /* storage full or private mode */ }
-        })
-        .catch(() => { })
-        .finally(() => setLoadingAnalytics(false));
+    if (activeTab === 'overview' && !analyticsCache[analyticsPeriod] && !loadingAnalytics) {
+      fetchAnalytics(analyticsPeriod);
     }
-  }, [activeTab, analyticsData, loadingAnalytics]);
+  }, [activeTab, analyticsPeriod, analyticsCache, loadingAnalytics, fetchAnalytics]);
 
   const openTalkMessages = (talk: Talk) => {
     setOpenTalk(talk);
@@ -257,6 +268,7 @@ export default function Dashboard() {
       const res = await fetch(url, { method: 'POST' });
       setSyncResult(await res.json());
       await fetchAll();
+      await fetchAnalytics(analyticsPeriod);
     } finally { setSyncing(false); }
   };
 
@@ -504,12 +516,13 @@ export default function Dashboard() {
                       </button>
                     ))}
                   </div>
-                  {analyticsData && (
-                    <button onClick={() => { try { localStorage.removeItem('mids_analytics'); } catch { } setAnalyticsData(null); setLoadingAnalytics(false); }}
-                      className="text-xs text-gray-500 border border-gray-200 rounded-lg px-2.5 py-1.5 hover:bg-gray-50 transition-colors">
-                      ↺
-                    </button>
-                  )}
+                  <button onClick={() => {
+                    try { localStorage.removeItem(`mids_analytics_${analyticsPeriod}`); } catch { }
+                    setAnalyticsCache(prev => ({ ...prev, [analyticsPeriod]: null }));
+                    fetchAnalytics(analyticsPeriod);
+                  }} className="text-xs text-gray-500 border border-gray-200 rounded-lg px-2.5 py-1.5 hover:bg-gray-50 transition-colors">
+                    ↺
+                  </button>
                 </div>
               </div>
 
@@ -525,7 +538,7 @@ export default function Dashboard() {
               )}
 
               {!loadingAnalytics && analyticsData && (() => {
-                const p = analyticsData[analyticsPeriod];
+                const p = analyticsData;
                 return (
                   <>
                     <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
@@ -588,11 +601,11 @@ export default function Dashboard() {
                               style={{ background: '#1877F2', color: '#fff' }}>f</div>
                           </div>
                           <p className="text-2xl font-bold text-white leading-tight">{formatCurrency(p.metaSpend)}</p>
-                          {analyticsData.metaError
-                            ? <p className="text-xs text-red-400 mt-1 truncate" title={analyticsData.metaError}>⚠ erro API</p>
+                          {p.metaError
+                            ? <p className="text-xs text-red-400 mt-1 truncate" title={p.metaError}>⚠ erro API</p>
                             : <p className="text-xs mt-1" style={{ color: '#a78bfa' }}>investido</p>
                           }
-                          {!analyticsData.metaError && (p.metaResults ?? 0) > 0 && (
+                          {!p.metaError && (p.metaResults ?? 0) > 0 && (
                             <div className="mt-3 pt-3 border-t" style={{ borderColor: '#3d2a6e' }}>
                               <div className="flex items-center justify-between gap-2">
                                 <div>
@@ -641,7 +654,7 @@ export default function Dashboard() {
 
                     {/* Ranking de Vendedores */}
                     {(() => {
-                      const ranking = analyticsData[analyticsPeriod].ranking ?? [];
+                      const ranking = analyticsData.ranking ?? [];
                       if (ranking.length === 0) return null;
                       const first = ranking[0]!;
                       const second = ranking[1];
@@ -887,7 +900,7 @@ export default function Dashboard() {
             {/* ── Funil de Conversão (independente do pipeline) ── */}
             {(() => {
               // Chats Novos — do analytics (período selecionado)
-              const newChats = analyticsData?.[analyticsPeriod]?.newChats ?? 0;
+              const newChats = analyticsData?.newChats ?? 0;
 
               // Leads em Tratativa — todos os leads ativos (não won=142, não lost=143) de TODOS os pipelines
               let activeLeads = 0;
@@ -951,7 +964,7 @@ export default function Dashboard() {
 
             {/* ── Row 3: Multi-series Chart ── */}
             {!loadingAnalytics && (() => {
-              const realData = analyticsData?.dailySales ?? [];
+              const realData = analyticsData?.dailySales ?? [] as { date: string; sales: number; revenue: number; newChats: number; metaSpend: number }[];
               const hasReal = realData.length > 0 && realData.some(d => d.sales > 0 || d.newChats > 0 || d.metaSpend > 0);
               const chartData = hasReal ? realData : mockDailySales;
               const isMock = !hasReal;
