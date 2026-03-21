@@ -206,6 +206,9 @@ export async function GET(req: NextRequest) {
       if (valor <= 0) continue;
       revenueByDay[day] = (revenueByDay[day] ?? 0) + valor;
 
+      // Ranking e revenue filtrado pelo período
+      if (day < fromStr) continue;
+
       const atendente = String(c['Atendente'] ?? '').trim();
       if (atendente) {
         const e = sellerAgg[atendente] ?? { nome: atendente, vendas: 0, faturamento: 0 };
