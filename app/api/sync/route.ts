@@ -1,11 +1,13 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { syncWonLeads } from '@/src/sync/syncWonLeads';
+import { syncDailyPage, calcDailyPage } from '@/src/sync/syncDailyPage';
 
-export async function POST(_req: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    const result = await syncWonLeads();
+    const pageParam = req.nextUrl.searchParams.get('fromPage');
+    const page = pageParam ? parseInt(pageParam) : calcDailyPage();
+    const result = await syncDailyPage(page);
     return NextResponse.json(result);
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });
