@@ -3,7 +3,6 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { syncDailyPage } from '@/src/sync/syncDailyPage';
 
-// Vercel Cron Jobs chamam GET com o header Authorization: Bearer <CRON_SECRET>
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization');
   const cronSecret = process.env.CRON_SECRET;
@@ -13,17 +12,20 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const result = await syncDailyPage();
+    const pageParam = req.nextUrl.searchParams.get('page');
+    const page = pageParam ? parseInt(pageParam) : undefined;
+    const result = await syncDailyPage(page);
     return NextResponse.json(result);
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }
 }
 
-// POST manual (painel ou teste)
-export async function POST(_req: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    const result = await syncDailyPage();
+    const pageParam = req.nextUrl.searchParams.get('page');
+    const page = pageParam ? parseInt(pageParam) : undefined;
+    const result = await syncDailyPage(page);
     return NextResponse.json(result);
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });
