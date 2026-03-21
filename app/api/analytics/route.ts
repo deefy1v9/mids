@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
 
     const chart14Rows = [...rows].filter(r => String(r.day).substring(0, 10) >= chart14Str).reverse();
 
-    // ── Kommo chats ─────────────────────────────────────────────────────────────
+    // ── Kommo chats (cache 15min) ────────────────────────────────────────────────
     const subdomain = process.env.KOMMO_SUBDOMAIN;
     const token     = process.env.KOMMO_ACCESS_TOKEN;
     const base      = `https://${subdomain}.kommo.com/api/v4`;
@@ -67,19 +67,31 @@ export async function GET(req: NextRequest) {
 
     let talks: { created_at: number; updated_at: number }[] = [];
     try {
-      let page = 1;
-      const talkLimit = 250;
-      while (true) {
-        const { data } = await axios.get(`${base}/talks`, {
-          params: { limit: talkLimit, page, with: 'contact' },
-          headers,
-          validateStatus: () => true,
-        });
-        const batch: { created_at: number; updated_at: number }[] = data?._embedded?.talks ?? [];
-        talks = talks.concat(batch);
-        if (batch.length < talkLimit) break;
-        if (batch[batch.length - 1]?.created_at < monthTs) break;
-        page++;
+      const { rows: talkCache } = await pool.query(
+        `SELECT data FROM api_cache WHERE key = 'kommo_talks' AND cached_at > NOW() - INTERVAL '15 minutes'`
+      );
+      if (talkCache.length > 0) {
+        talks = talkCache[0].data as typeof talks;
+      } else {
+        let page = 1;
+        const talkLimit = 250;
+        while (true) {
+          const { data } = await axios.get(`${base}/talks`, {
+            params: { limit: talkLimit, page, with: 'contact' },
+            headers,
+            validateStatus: () => true,
+          });
+          const batch: { created_at: number; updated_at: number }[] = data?._embedded?.talks ?? [];
+          talks = talks.concat(batch);
+          if (batch.length < talkLimit) break;
+          if (batch[batch.length - 1]?.created_at < monthTs) break;
+          page++;
+        }
+        await pool.query(
+          `INSERT INTO api_cache (key, data, cached_at) VALUES ('kommo_talks', $1, NOW())
+           ON CONFLICT (key) DO UPDATE SET data = $1, cached_at = NOW()`,
+          [JSON.stringify(talks)]
+        );
       }
     } catch { /* talks stays empty */ }
 

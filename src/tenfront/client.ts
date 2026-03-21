@@ -1,6 +1,10 @@
 import axios, { AxiosInstance } from 'axios';
 import { logger } from '../utils/logger';
 
+// Cache em memória do mapa de clientes (válido por 12h por processo)
+let _clientesMapCache: { data: Map<string, ClienteInfo>; ts: number } | null = null;
+const CLIENTES_CACHE_TTL_MS = 12 * 60 * 60 * 1000;
+
 // Estrutura real retornada pela API TenFront (/listar-contas-a-receber)
 export interface ContaAReceber {
   'Forma': string;
@@ -297,6 +301,11 @@ export class TenFrontClient {
 
   // Constrói mapa: nome normalizado → { celular, email, cpf, clienteName }
   async buildClientesMap(): Promise<Map<string, ClienteInfo>> {
+    if (_clientesMapCache && Date.now() - _clientesMapCache.ts < CLIENTES_CACHE_TTL_MS) {
+      logger.info(`TenFront: mapa de clientes do cache (${_clientesMapCache.data.size} entradas)`);
+      return _clientesMapCache.data;
+    }
+
     const clientes = await this.listClientes();
     const map = new Map<string, ClienteInfo>();
 
@@ -308,6 +317,7 @@ export class TenFrontClient {
       }
     }
 
+    _clientesMapCache = { data: map, ts: Date.now() };
     logger.info(`TenFront: mapa de clientes construído com ${map.size} entradas`);
     return map;
   }
