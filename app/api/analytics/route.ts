@@ -29,14 +29,14 @@ export async function GET(req: NextRequest) {
     const weekTs = nowTs - 7 * 86400;
     const monthTs = nowTs - 30 * 86400;
 
+    const todayStr   = todayDate.toISOString().split('T')[0];
     const PERIOD_CONFIG = {
-      today: { fromDate: todayDate, metaPreset: 'today',    fromTs: dayTs,   cacheKey: 'tenfront_contas_today', cacheTTL: 1 },
+      today: { fromDate: todayDate, metaPreset: 'today',    fromTs: dayTs,   cacheKey: `tenfront_contas_today_${todayStr}`, cacheTTL: 1 },
       week:  { fromDate: weekAgoDate,  metaPreset: 'last_7d',  fromTs: weekTs,  cacheKey: 'tenfront_contas_week',  cacheTTL: 3 },
       month: { fromDate: monthAgoDate, metaPreset: 'last_30d', fromTs: monthTs, cacheKey: 'tenfront_contas_month', cacheTTL: 6 },
     };
     const cfg = PERIOD_CONFIG[period];
 
-    const todayStr   = todayDate.toISOString().split('T')[0];
     const fromStr    = cfg.fromDate.toISOString().split('T')[0];
     const chart14Str = new Date(todayDate.getTime() - 14 * 86400000).toISOString().split('T')[0];
 
