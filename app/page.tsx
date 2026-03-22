@@ -147,13 +147,16 @@ export default function Dashboard() {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [messagesRaw, setMessagesRaw] = useState<unknown>(null);
   const [analyticsCache, setAnalyticsCache] = useState<AnalyticsCache>(() => {
+    const todayStr = new Date().toISOString().split('T')[0];
     const load = (p: string): PeriodData | null => {
       try {
         if (typeof window === 'undefined') return null;
         const raw = localStorage.getItem(`mids_analytics_${p}`);
         if (!raw) return null;
-        const parsed = JSON.parse(raw) as PeriodData;
+        const parsed = JSON.parse(raw) as PeriodData & { _cachedDate?: string };
         if (parsed.period !== p || parsed.revenue === undefined) return null;
+        // Para "hoje", descartar cache de dias anteriores
+        if (p === 'today' && parsed._cachedDate !== todayStr) return null;
         return parsed;
       } catch { return null; }
     };
@@ -171,7 +174,10 @@ export default function Dashboard() {
       const data = await res.json() as PeriodData;
       if (!data?.period) return;
       setAnalyticsCache(prev => ({ ...prev, [p]: data }));
-      try { localStorage.setItem(`mids_analytics_${p}`, JSON.stringify(data)); } catch { /* ignore */ }
+      try {
+        const toStore = { ...data, _cachedDate: new Date().toISOString().split('T')[0] };
+        localStorage.setItem(`mids_analytics_${p}`, JSON.stringify(toStore));
+      } catch { /* ignore */ }
     } catch { } finally { setLoadingAnalytics(false); }
   }, []);
 
