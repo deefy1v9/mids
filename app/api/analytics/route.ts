@@ -55,7 +55,6 @@ export async function GET(req: NextRequest) {
     const dbFrom = period === 'today' ? todayStr : fromStr;
     const dbFiltered = rows.filter(r => String(r.day).substring(0, 10) >= dbFrom);
     const sales   = dbFiltered.reduce((s, r) => s + Number(r.sales), 0);
-    const dbRevenue = dbFiltered.reduce((s, r) => s + Number(r.revenue), 0);
 
     const chart14Rows = [...rows].filter(r => String(r.day).substring(0, 10) >= chart14Str).reverse();
 
@@ -173,9 +172,10 @@ export async function GET(req: NextRequest) {
         contasAReceber = cacheRows[0].data as ContaAReceber[];
       } else {
         const tf = new TenFrontClient();
+        const fetchFrom = new Date(cfg.fromDate.getTime() - 86400000); // 1 dia de buffer
         const timeout = new Promise<ContaAReceber[]>(resolve => setTimeout(() => resolve([]), 30000));
         const fetched = await Promise.race([
-          tf.listContasAReceber(fmtBR(cfg.fromDate), fmtBR(todayDate)),
+          tf.listContasAReceber(fmtBR(fetchFrom), fmtBR(todayDate)),
           timeout,
         ]);
         contasAReceber = fetched;
@@ -200,7 +200,8 @@ export async function GET(req: NextRequest) {
     const sellerAgg: Record<string, SellerEntry> = {};
 
     for (const c of contasAReceber) {
-      const day = parseBRDate(c['Data recebimento'] ?? '');
+      const dateStr = (c['Data compensação'] as string) || c['Data recebimento'] || '';
+      const day = parseBRDate(dateStr);
       if (!day) continue;
       const valor = Number(c['Valor informado'] ?? 0);
       if (valor <= 0) continue;

@@ -11,7 +11,8 @@ export interface ContaAReceber {
   'Forma de pagamento'?: string;
   'Origem': string;
   'Descrição': string;         // "ATE-XXXXXXX | Nome do Cliente"
-  'Data recebimento': string;  // "DD/MM/YYYY" — data real do recebimento
+  'Data recebimento': string;  // "DD/MM/YYYY" — data de registro do recebimento
+  'Data compensação'?: string; // "DD/MM/YYYY" — data de compensação bancária (usada para filtros)
   'Conta': string;
   'Valor informado': number;   // valor recebido
   'Atendente': string;
