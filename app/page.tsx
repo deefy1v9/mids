@@ -61,7 +61,7 @@ interface SyncResult { total: number; matched: number; updated: number; notFound
 
 interface SellerEntry { nome: string; vendas: number; faturamento: number; }
 interface PeriodData {
-  period: 'today' | 'week' | 'month';
+  period: 'today' | 'week' | 'month' | 'custom';
   sales: number; revenue: number; lucro: number;
   newChats: number; avgResponseMinutes: number;
   metaSpend: number; metaResults: number; metaCostPerResult: number;
@@ -163,9 +163,13 @@ export default function Dashboard() {
     try { localStorage.removeItem('mids_analytics'); } catch { /* ignore */ }
     return { today: load('today'), week: load('week'), month: load('month') };
   });
-  const [analyticsPeriod, setAnalyticsPeriod] = useState<'today' | 'week' | 'month'>('today');
+  const [analyticsPeriod, setAnalyticsPeriod] = useState<'today' | 'week' | 'month' | 'custom'>('today');
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
-  const analyticsData = analyticsCache[analyticsPeriod];
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo] = useState('');
+  const [customData, setCustomData] = useState<PeriodData | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const analyticsData = analyticsPeriod === 'custom' ? customData : analyticsCache[analyticsPeriod];
 
   const fetchAnalytics = useCallback(async (p: 'today' | 'week' | 'month') => {
     setLoadingAnalytics(true);
@@ -178,6 +182,19 @@ export default function Dashboard() {
         const toStore = { ...data, _cachedDate: new Date().toISOString().split('T')[0] };
         localStorage.setItem(`mids_analytics_${p}`, JSON.stringify(toStore));
       } catch { /* ignore */ }
+    } catch { } finally { setLoadingAnalytics(false); }
+  }, []);
+
+  const fetchCustomAnalytics = useCallback(async (from: string, to: string) => {
+    if (!from || !to) return;
+    setLoadingAnalytics(true);
+    try {
+      const res = await fetch(`/api/analytics?from=${from}&to=${to}`);
+      const data = await res.json() as PeriodData;
+      if (!data?.period) return;
+      setCustomData(data);
+      setAnalyticsPeriod('custom');
+      setShowDatePicker(false);
     } catch { } finally { setLoadingAnalytics(false); }
   }, []);
 
@@ -228,7 +245,7 @@ export default function Dashboard() {
   }, [activeTab, chatData, loadingChat]);
 
   useEffect(() => {
-    if (activeTab === 'overview' && !analyticsCache[analyticsPeriod] && !loadingAnalytics) {
+    if (activeTab === 'overview' && analyticsPeriod !== 'custom' && !analyticsCache[analyticsPeriod] && !loadingAnalytics) {
       fetchAnalytics(analyticsPeriod);
     }
   }, [activeTab, analyticsPeriod, analyticsCache, loadingAnalytics, fetchAnalytics]);
@@ -274,7 +291,8 @@ export default function Dashboard() {
       const res = await fetch(url, { method: 'POST' });
       setSyncResult(await res.json());
       await fetchAll();
-      await fetchAnalytics(analyticsPeriod);
+      if (analyticsPeriod === 'custom') await fetchCustomAnalytics(customFrom, customTo);
+      else await fetchAnalytics(analyticsPeriod);
     } finally { setSyncing(false); }
   };
 
@@ -516,17 +534,41 @@ export default function Dashboard() {
                   )}
                   <div className="flex items-center gap-1 bg-white border border-gray-100 rounded-xl p-1 shadow-sm">
                     {(['today', 'week', 'month'] as const).map(p => (
-                      <button key={p} onClick={() => setAnalyticsPeriod(p)}
+                      <button key={p} onClick={() => { setAnalyticsPeriod(p); setShowDatePicker(false); }}
                         className="px-2.5 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all"
                         style={analyticsPeriod === p ? { background: 'var(--text-primary)', color: 'var(--bg-page)' } : { color: 'var(--text-muted)' }}>
                         {p === 'today' ? 'Hoje' : p === 'week' ? '7d' : '30d'}
                       </button>
                     ))}
+                    <button onClick={() => setShowDatePicker(v => !v)}
+                      className="px-2.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all"
+                      style={analyticsPeriod === 'custom' ? { background: 'var(--text-primary)', color: 'var(--bg-page)' } : { color: 'var(--text-muted)' }}
+                      title="Período personalizado">
+                      📅
+                    </button>
                   </div>
+                  {showDatePicker && (
+                    <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2 shadow-sm">
+                      <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)}
+                        className="text-xs border border-gray-200 rounded-lg px-2 py-1 outline-none" />
+                      <span className="text-xs text-gray-400">até</span>
+                      <input type="date" value={customTo} onChange={e => setCustomTo(e.target.value)}
+                        className="text-xs border border-gray-200 rounded-lg px-2 py-1 outline-none" />
+                      <button onClick={() => fetchCustomAnalytics(customFrom, customTo)}
+                        disabled={!customFrom || !customTo || loadingAnalytics}
+                        className="text-xs bg-black text-white rounded-lg px-3 py-1 disabled:opacity-40 hover:bg-gray-800 transition-colors">
+                        Buscar
+                      </button>
+                    </div>
+                  )}
                   <button onClick={() => {
-                    try { localStorage.removeItem(`mids_analytics_${analyticsPeriod}`); } catch { }
-                    setAnalyticsCache(prev => ({ ...prev, [analyticsPeriod]: null }));
-                    fetchAnalytics(analyticsPeriod);
+                    if (analyticsPeriod === 'custom') {
+                      fetchCustomAnalytics(customFrom, customTo);
+                    } else {
+                      try { localStorage.removeItem(`mids_analytics_${analyticsPeriod}`); } catch { }
+                      setAnalyticsCache(prev => ({ ...prev, [analyticsPeriod]: null }));
+                      fetchAnalytics(analyticsPeriod);
+                    }
                   }} className="text-xs text-gray-500 border border-gray-200 rounded-lg px-2.5 py-1.5 hover:bg-gray-50 transition-colors">
                     ↺
                   </button>

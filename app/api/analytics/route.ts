@@ -10,9 +10,13 @@ export async function GET(req: NextRequest) {
     await ensureMigrated();
 
     const rawPeriod = req.nextUrl.searchParams.get('period') ?? 'today';
-    const period = (['today', 'week', 'month'] as const).includes(rawPeriod as 'today' | 'week' | 'month')
-      ? (rawPeriod as 'today' | 'week' | 'month')
-      : 'today';
+    const customFrom = req.nextUrl.searchParams.get('from'); // YYYY-MM-DD
+    const customTo   = req.nextUrl.searchParams.get('to');   // YYYY-MM-DD
+    const isCustom   = !!(customFrom && customTo);
+    const period = isCustom ? 'custom'
+      : (['today', 'week', 'month'] as const).includes(rawPeriod as 'today' | 'week' | 'month')
+        ? (rawPeriod as 'today' | 'week' | 'month')
+        : 'today';
 
     const todayDate = new Date();
     const fmtBR = (d: Date) =>
@@ -29,13 +33,29 @@ export async function GET(req: NextRequest) {
     const weekTs = nowTs - 7 * 86400;
     const monthTs = nowTs - 30 * 86400;
 
-    const todayStr   = todayDate.toISOString().split('T')[0];
-    const PERIOD_CONFIG = {
-      today: { fromDate: todayDate, metaPreset: 'today',    fromTs: dayTs,   cacheKey: `tenfront_contas_today_${todayStr}`, cacheTTL: 1 },
-      week:  { fromDate: weekAgoDate,  metaPreset: 'last_7d',  fromTs: weekTs,  cacheKey: 'tenfront_contas_week',  cacheTTL: 3 },
-      month: { fromDate: monthAgoDate, metaPreset: 'last_30d', fromTs: monthTs, cacheKey: 'tenfront_contas_month', cacheTTL: 6 },
-    };
-    const cfg = PERIOD_CONFIG[period];
+    const todayStr = todayDate.toISOString().split('T')[0];
+
+    // Para período customizado, derivar config a partir das datas passadas
+    let cfg: { fromDate: Date; toDate: Date; metaPreset?: string; metaTimeRange?: { since: string; until: string }; fromTs: number; cacheKey: string; cacheTTL: number };
+    if (isCustom) {
+      const fromDate = new Date(customFrom! + 'T00:00:00');
+      const toDate   = new Date(customTo!   + 'T23:59:59');
+      cfg = {
+        fromDate,
+        toDate,
+        metaTimeRange: { since: customFrom!, until: customTo! },
+        fromTs: fromDate.getTime() / 1000,
+        cacheKey: `tenfront_contas_custom_${customFrom}_${customTo}`,
+        cacheTTL: 1,
+      };
+    } else {
+      const presetMap = {
+        today: { fromDate: todayDate, toDate: todayDate, metaPreset: 'today',    fromTs: dayTs,   cacheKey: `tenfront_contas_today_${todayStr}`, cacheTTL: 1 },
+        week:  { fromDate: weekAgoDate,  toDate: todayDate, metaPreset: 'last_7d',  fromTs: weekTs,  cacheKey: 'tenfront_contas_week',  cacheTTL: 3 },
+        month: { fromDate: monthAgoDate, toDate: todayDate, metaPreset: 'last_30d', fromTs: monthTs, cacheKey: 'tenfront_contas_month', cacheTTL: 6 },
+      };
+      cfg = presetMap[period as 'today' | 'week' | 'month'];
+    }
 
     const fromStr    = cfg.fromDate.toISOString().split('T')[0];
     const chart14Str = new Date(todayDate.getTime() - 14 * 86400000).toISOString().split('T')[0];
@@ -125,12 +145,15 @@ export async function GET(req: NextRequest) {
       return 0;
     };
 
-    const fetchMetaSpend = async (datePreset: string) => {
+    const fetchMetaSpend = async (opts: { datePreset?: string; timeRange?: { since: string; until: string } }) => {
       if (!metaToken || !metaAccountId) return { spend: 0, results: 0, costPerResult: 0, error: 'missing credentials' };
       try {
+        const params: Record<string, unknown> = { fields: 'spend,actions', access_token: metaToken };
+        if (opts.timeRange) params['time_range'] = JSON.stringify(opts.timeRange);
+        else params['date_preset'] = opts.datePreset;
         const { data } = await axios.get(
           `https://graph.facebook.com/v19.0/${metaAccountId}/insights`,
-          { params: { fields: 'spend,actions', date_preset: datePreset, access_token: metaToken }, validateStatus: () => true }
+          { params, validateStatus: () => true }
         );
         if (data?.error) return { spend: 0, results: 0, costPerResult: 0, error: data.error.message ?? JSON.stringify(data.error) };
         const row    = data?.data?.[0];
@@ -158,7 +181,7 @@ export async function GET(req: NextRequest) {
       }
     } catch { /* leave empty */ }
 
-    const metaData = await fetchMetaSpend(cfg.metaPreset);
+    const metaData = await fetchMetaSpend(cfg.metaTimeRange ? { timeRange: cfg.metaTimeRange } : { datePreset: cfg.metaPreset });
 
     // ── TenFront contas a receber ────────────────────────────────────────────────
     let tenFrontError: string | null = null;
@@ -173,9 +196,10 @@ export async function GET(req: NextRequest) {
       } else {
         const tf = new TenFrontClient();
         const fetchFrom = new Date(cfg.fromDate.getTime() - 86400000); // 1 dia de buffer
+        const fetchTo   = cfg.toDate ?? todayDate;
         const timeout = new Promise<ContaAReceber[]>(resolve => setTimeout(() => resolve([]), 30000));
         const fetched = await Promise.race([
-          tf.listContasAReceber(fmtBR(fetchFrom), fmtBR(todayDate)),
+          tf.listContasAReceber(fmtBR(fetchFrom), fmtBR(fetchTo)),
           timeout,
         ]);
         contasAReceber = fetched;
