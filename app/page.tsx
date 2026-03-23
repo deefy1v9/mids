@@ -60,6 +60,17 @@ interface SyncConfig { markAsWon: boolean; pipelineId?: number; stageId?: number
 interface SyncResult { total: number; matched: number; updated: number; notFound: number; errors: number; }
 
 interface SellerEntry { nome: string; vendas: number; faturamento: number; }
+
+interface SheetsData {
+  connected: boolean;
+  totalRevenue: number;
+  totalSales: number;
+  ticketMedio: number;
+  bySeller: SellerEntry[];
+  byProduct: { nome: string; vendas: number; faturamento: number }[];
+  byDate: { date: string; faturamento: number; vendas: number }[];
+}
+
 interface PeriodData {
   period: 'today' | 'week' | 'month' | 'custom';
   sales: number; revenue: number; lucro: number;
@@ -171,6 +182,9 @@ export default function Dashboard() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const analyticsData = analyticsPeriod === 'custom' ? customData : analyticsCache[analyticsPeriod];
 
+  const [sheetsData, setSheetsData] = useState<SheetsData | null>(null);
+  const [loadingSheets, setLoadingSheets] = useState(false);
+
   const fetchAnalytics = useCallback(async (p: 'today' | 'week' | 'month') => {
     setLoadingAnalytics(true);
     try {
@@ -207,8 +221,18 @@ export default function Dashboard() {
     setConfig(configRes);
   }, []);
 
+  const fetchSheets = async (refresh = false) => {
+    setLoadingSheets(true);
+    try {
+      const res = await fetch(`/api/sheets/data${refresh ? '?refresh=1' : ''}`);
+      const d = await res.json();
+      setSheetsData(d);
+    } catch { } finally { setLoadingSheets(false); }
+  };
+
   useEffect(() => {
     fetchAll();
+    fetchSheets();
     fetch('/api/pipelines').then(r => r.json())
       .then(d => setPipelines(Array.isArray(d) ? d : []))
       .catch(() => { });
@@ -656,6 +680,159 @@ export default function Dashboard() {
                   </>
                 );
               })()}
+            </div>
+
+            {/* ── Google Sheets Dashboard ── */}
+            <div className="mt-3 sm:mt-4">
+              {!sheetsData?.connected ? (
+                <div className="rounded-2xl border border-dashed border-gray-200 p-6 flex flex-col sm:flex-row items-center justify-between gap-4"
+                  style={{ background: isDark ? '#111' : '#fafafa' }}>
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Google Sheets</p>
+                    <p className="text-xs text-gray-400 mt-0.5">Conecte sua planilha de vendas para ver dashboards detalhados</p>
+                  </div>
+                  <a href="/api/sheets/auth"
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-white flex-shrink-0 transition-opacity hover:opacity-80"
+                    style={{ background: '#0F9D58' }}>
+                    <svg width="16" height="16" viewBox="0 0 48 48" fill="none"><rect width="48" height="48" rx="4" fill="#0F9D58"/><path d="M14 12h20v4H14zM14 20h20v4H14zM14 28h12v4H14z" fill="white"/></svg>
+                    Conectar Google Sheets
+                  </a>
+                </div>
+              ) : (
+                <div className="rounded-2xl border overflow-hidden" style={{ background: isDark ? '#0d0d0d' : '#fff', borderColor: isDark ? '#1f2937' : '#e5e7eb' }}>
+                  {/* Header */}
+                  <div className="px-5 pt-5 pb-3 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <svg width="18" height="18" viewBox="0 0 48 48"><rect width="48" height="48" rx="4" fill="#0F9D58"/><path d="M14 12h20v4H14zM14 20h20v4H14zM14 28h12v4H14z" fill="white"/></svg>
+                      <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Google Sheets · Vendas</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => fetchSheets(true)} disabled={loadingSheets}
+                        className="text-xs text-gray-500 border border-gray-200 rounded-lg px-2 py-1 hover:bg-gray-50 transition-colors disabled:opacity-40">
+                        {loadingSheets ? '…' : '↺'}
+                      </button>
+                      <button onClick={async () => { await fetch('/api/sheets/disconnect', { method: 'POST' }); setSheetsData(null); }}
+                        className="text-xs text-red-400 border border-red-100 rounded-lg px-2 py-1 hover:bg-red-50 transition-colors">
+                        Desconectar
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* KPI cards */}
+                  <div className="grid grid-cols-3 gap-3 px-5 pb-4">
+                    {[
+                      { label: 'Faturamento Total', value: formatCurrency(sheetsData.totalRevenue) },
+                      { label: 'Total de Vendas',   value: String(sheetsData.totalSales) },
+                      { label: 'Ticket Médio',      value: formatCurrency(sheetsData.ticketMedio) },
+                    ].map(c => (
+                      <div key={c.label} className="rounded-xl p-4 border" style={{ background: isDark ? '#1a1a1a' : '#f9fafb', borderColor: isDark ? '#2a2a2a' : '#e5e7eb' }}>
+                        <p className="text-[11px] text-gray-400 uppercase tracking-wide mb-1">{c.label}</p>
+                        <p className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>{c.value}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Ranking vendedores */}
+                  {sheetsData.bySeller.length > 0 && (() => {
+                    const ranking = sheetsData.bySeller;
+                    const first = ranking[0]!;
+                    const second = ranking[1];
+                    const third = ranking[2];
+                    const rest = ranking.slice(3);
+                    const initials = (n: string) => n.trim().split(' ').slice(0, 2).map(w => w[0]?.toUpperCase() ?? '').join('');
+                    return (
+                      <div className="border-t px-5 pt-4 pb-4" style={{ borderColor: isDark ? '#1f2937' : '#e5e7eb' }}>
+                        <p className="text-[11px] text-gray-500 uppercase tracking-wide mb-3">Ranking de Vendedores</p>
+                        <div className="flex items-end gap-2">
+                          {second ? (
+                            <div className="flex-1 rounded-2xl p-3 flex flex-col items-center text-center" style={{ background: '#1c1c1e', border: '1px solid #2a2a2e' }}>
+                              <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold mb-1" style={{ background: '#2a2a2e', color: '#9ca3af' }}>{initials(second.nome)}</div>
+                              <p className="text-[9px] text-gray-500 uppercase tracking-widest">🥈 2°</p>
+                              <p className="text-xs font-bold text-white mt-0.5">{second.nome}</p>
+                              <p className="text-xs font-bold mt-0.5" style={{ color: '#d1d5db' }}>{formatCurrency(second.faturamento)}</p>
+                              <p className="text-[10px] text-gray-600">{second.vendas} vendas</p>
+                            </div>
+                          ) : <div className="flex-1" />}
+                          <div className="flex-1 rounded-2xl p-4 flex flex-col items-center text-center" style={{ background: 'linear-gradient(145deg,#3d2800,#1a1000)', border: '1px solid #D97706', marginBottom: '-8px' }}>
+                            <div className="w-12 h-12 rounded-full flex items-center justify-center text-base font-bold mb-1" style={{ background: '#D97706', color: '#000' }}>{initials(first.nome)}</div>
+                            <p className="text-[9px] uppercase tracking-widest" style={{ color: '#F59E0B' }}>🏆 1°</p>
+                            <p className="text-xs font-bold text-white mt-0.5">{first.nome}</p>
+                            <p className="text-sm font-bold mt-0.5" style={{ color: '#F59E0B' }}>{formatCurrency(first.faturamento)}</p>
+                            <p className="text-[10px]" style={{ color: '#92400e' }}>{first.vendas} vendas</p>
+                          </div>
+                          {third ? (
+                            <div className="flex-1 rounded-2xl p-3 flex flex-col items-center text-center" style={{ background: '#1c1c1e', border: '1px solid #3a2510' }}>
+                              <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold mb-1" style={{ background: '#2a1a0a', color: '#cd7f32' }}>{initials(third.nome)}</div>
+                              <p className="text-[9px] uppercase tracking-widest" style={{ color: '#cd7f32' }}>🥉 3°</p>
+                              <p className="text-xs font-bold text-white mt-0.5">{third.nome}</p>
+                              <p className="text-xs font-bold mt-0.5" style={{ color: '#cd7f32' }}>{formatCurrency(third.faturamento)}</p>
+                              <p className="text-[10px]" style={{ color: '#6b4226' }}>{third.vendas} vendas</p>
+                            </div>
+                          ) : <div className="flex-1" />}
+                        </div>
+                        {rest.length > 0 && (
+                          <div className="mt-3 flex flex-col gap-2">
+                            {rest.map((s, i) => (
+                              <div key={s.nome} className="flex items-center gap-3">
+                                <span className="text-xs text-gray-600 w-5 text-center font-bold">{i + 4}°</span>
+                                <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0" style={{ background: '#1f2937', color: '#6b7280' }}>{initials(s.nome)}</div>
+                                <p className="flex-1 text-sm text-gray-300 truncate">{s.nome}</p>
+                                <p className="text-xs text-gray-500">{s.vendas} vend.</p>
+                                <p className="text-sm font-semibold text-gray-200">{formatCurrency(s.faturamento)}</p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {/* Por produto */}
+                  {sheetsData.byProduct.length > 0 && (
+                    <div className="border-t px-5 pt-4 pb-4" style={{ borderColor: isDark ? '#1f2937' : '#e5e7eb' }}>
+                      <p className="text-[11px] text-gray-500 uppercase tracking-wide mb-3">Vendas por Produto</p>
+                      <div className="flex flex-col gap-2">
+                        {sheetsData.byProduct.slice(0, 8).map(p => {
+                          const max = sheetsData.byProduct[0]?.faturamento ?? 1;
+                          const pct = Math.round((p.faturamento / max) * 100);
+                          return (
+                            <div key={p.nome} className="flex items-center gap-3">
+                              <p className="text-xs truncate w-32 flex-shrink-0" style={{ color: 'var(--text-primary)' }}>{p.nome || 'Outros'}</p>
+                              <div className="flex-1 rounded-full overflow-hidden h-2" style={{ background: isDark ? '#1f2937' : '#e5e7eb' }}>
+                                <div className="h-full rounded-full" style={{ width: `${pct}%`, background: '#0F9D58' }} />
+                              </div>
+                              <p className="text-xs text-gray-400 w-20 text-right flex-shrink-0">{formatCurrency(p.faturamento)}</p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Evolução temporal */}
+                  {sheetsData.byDate.length > 1 && (
+                    <div className="border-t px-5 pt-4 pb-5" style={{ borderColor: isDark ? '#1f2937' : '#e5e7eb' }}>
+                      <p className="text-[11px] text-gray-500 uppercase tracking-wide mb-3">Evolução de Faturamento</p>
+                      <div className="flex items-end gap-1 h-24">
+                        {(() => {
+                          const maxVal = Math.max(...sheetsData.byDate.map(d => d.faturamento), 1);
+                          return sheetsData.byDate.slice(-30).map(d => {
+                            const h = Math.max(4, Math.round((d.faturamento / maxVal) * 88));
+                            return (
+                              <div key={d.date} className="flex-1 flex flex-col items-center justify-end group relative">
+                                <div className="w-full rounded-sm transition-all" style={{ height: `${h}px`, background: '#0F9D58', opacity: 0.8 }} />
+                                <div className="absolute bottom-full mb-1 hidden group-hover:block bg-black text-white text-[10px] rounded px-1.5 py-0.5 whitespace-nowrap z-10">
+                                  {d.date.slice(5)} · {formatCurrency(d.faturamento)}
+                                </div>
+                              </div>
+                            );
+                          });
+                        })()}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* ── Row 1: 4 Stat Cards ── */}

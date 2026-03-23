@@ -55,6 +55,14 @@ async function migrate(): Promise<void> {
         data      JSONB NOT NULL,
         cached_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
+
+      CREATE TABLE IF NOT EXISTS google_tokens (
+        id            INT PRIMARY KEY DEFAULT 1,
+        access_token  TEXT,
+        refresh_token TEXT NOT NULL,
+        expiry_date   BIGINT,
+        updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
     `);
 
     // Importar matches.json se tabela vazia
