@@ -604,40 +604,6 @@ export default function Dashboard() {
                         </div>
                       </div>
 
-                      {/* Faturamento */}
-                      <div className="rounded-2xl p-5 border shadow-sm relative overflow-hidden"
-                        style={{ background: '#111827', borderColor: '#1f2937' }}>
-                        <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full opacity-30"
-                          style={{ background: '#AEFF6E', filter: 'blur(30px)' }} />
-                        <div className="relative">
-                          <div className="flex items-start justify-between mb-4">
-                            <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Faturamento</p>
-                            <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
-                              style={{ background: '#AEFF6E', color: '#111' }}>R$</div>
-                          </div>
-                          <p className="text-2xl font-bold text-white leading-tight">{formatCurrency(p.revenue)}</p>
-                        </div>
-                      </div>
-
-                      {/* Lucro */}
-                      <div className="rounded-2xl p-5 border shadow-sm relative overflow-hidden"
-                        style={{ background: '#0a1f0f', borderColor: '#1a3a20' }}>
-                        <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full opacity-30"
-                          style={{ background: '#AEFF6E', filter: 'blur(30px)' }} />
-                        <div className="relative">
-                          <div className="flex items-start justify-between mb-4">
-                            <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Lucro</p>
-                            <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
-                              style={{ background: '#AEFF6E', color: '#111' }}>↑</div>
-                          </div>
-                          <p className="text-2xl font-bold leading-tight"
-                            style={{ color: (p.lucro ?? 0) >= 0 ? '#AEFF6E' : '#f87171' }}>
-                            {formatCurrency(p.lucro ?? 0)}
-                          </p>
-                          <p className="text-xs mt-1" style={{ color: '#86efac' }}>faturamento − meta ads</p>
-                        </div>
-                      </div>
-
                       {/* Meta Ads */}
                       <div className="rounded-2xl p-5 border shadow-sm relative overflow-hidden"
                         style={{ background: '#1a1035', borderColor: '#2d1f5e' }}>
@@ -654,20 +620,6 @@ export default function Dashboard() {
                             ? <p className="text-xs text-red-400 mt-1 truncate" title={p.metaError}>⚠ erro API</p>
                             : <p className="text-xs mt-1" style={{ color: '#a78bfa' }}>investido</p>
                           }
-                          {!p.metaError && (p.metaResults ?? 0) > 0 && (
-                            <div className="mt-3 pt-3 border-t" style={{ borderColor: '#3d2a6e' }}>
-                              <div className="flex items-center justify-between gap-2">
-                                <div>
-                                  <p className="text-lg font-bold text-white leading-tight">{p.metaResults}</p>
-                                  <p className="text-[11px]" style={{ color: '#a78bfa' }}>resultados</p>
-                                </div>
-                                <div className="text-right">
-                                  <p className="text-sm font-semibold text-white">{formatCurrency(p.metaCostPerResult ?? 0)}</p>
-                                  <p className="text-[11px]" style={{ color: '#a78bfa' }}>por resultado</p>
-                                </div>
-                              </div>
-                            </div>
-                          )}
                         </div>
                       </div>
 
@@ -701,90 +653,6 @@ export default function Dashboard() {
                       </div>
                     </div>
 
-                    {/* Ranking de Vendedores */}
-                    {(() => {
-                      const ranking = analyticsData.ranking ?? [];
-                      if (ranking.length === 0) return null;
-                      const first = ranking[0]!;
-                      const second = ranking[1];
-                      const third = ranking[2];
-                      const rest = ranking.slice(3);
-                      const initials = (nome: string) => nome.trim().split(' ').slice(0, 2).map(w => w[0]?.toUpperCase() ?? '').join('');
-                      return (
-                        <div className="mt-3 sm:mt-4 rounded-2xl border overflow-hidden"
-                          style={{ background: '#0d0d0d', borderColor: '#1f2937' }}>
-                          <div className="px-5 pt-5 pb-2">
-                            <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Ranking de Vendedores</p>
-                          </div>
-
-                          {/* Pódio — 1°, 2° e 3° lugar */}
-                          <div className="flex items-end gap-2 px-4 pb-4 pt-2">
-                            {/* 2° lugar */}
-                            {second ? (
-                              <div className="flex-1 rounded-2xl p-3 flex flex-col items-center text-center relative overflow-hidden"
-                                style={{ background: '#1c1c1e', border: '1px solid #2a2a2e' }}>
-                                <div className="w-12 h-12 rounded-full flex items-center justify-center text-base font-bold mb-2 border-2"
-                                  style={{ background: '#2a2a2e', color: '#9ca3af', borderColor: '#3a3a3e' }}>
-                                  {initials(second.nome)}
-                                </div>
-                                <p className="text-[9px] text-gray-500 font-medium uppercase tracking-widest mb-0.5">🥈 2° Lugar</p>
-                                <p className="text-xs font-bold text-white leading-tight">{second.nome}</p>
-                                <p className="text-sm font-bold mt-1" style={{ color: '#d1d5db' }}>{formatCurrency(second.faturamento)}</p>
-                                <p className="text-[10px] text-gray-600 mt-1">🏆 {second.vendas} vendas</p>
-                              </div>
-                            ) : <div className="flex-1" />}
-
-                            {/* 1° lugar — centro, maior */}
-                            <div className="flex-1 rounded-2xl p-4 flex flex-col items-center text-center relative overflow-hidden"
-                              style={{ background: 'linear-gradient(145deg, #3d2800, #1a1000)', border: '1px solid #D97706', marginBottom: '-8px' }}>
-                              <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full opacity-30"
-                                style={{ background: '#F59E0B', filter: 'blur(20px)' }} />
-                              <div className="relative w-14 h-14 rounded-full flex items-center justify-center text-lg font-bold mb-2 border-2"
-                                style={{ background: '#D97706', color: '#000', borderColor: '#F59E0B' }}>
-                                {initials(first.nome)}
-                              </div>
-                              <p className="text-[9px] font-medium uppercase tracking-widest mb-0.5" style={{ color: '#F59E0B' }}>🏆 1° Lugar</p>
-                              <p className="text-xs font-bold text-white leading-tight">{first.nome}</p>
-                              <p className="text-base font-bold mt-1" style={{ color: '#F59E0B' }}>{formatCurrency(first.faturamento)}</p>
-                              <p className="text-[10px] mt-1" style={{ color: '#92400e' }}>🏆 {first.vendas} vendas</p>
-                            </div>
-
-                            {/* 3° lugar */}
-                            {third ? (
-                              <div className="flex-1 rounded-2xl p-3 flex flex-col items-center text-center relative overflow-hidden"
-                                style={{ background: '#1c1c1e', border: '1px solid #3a2510' }}>
-                                <div className="w-12 h-12 rounded-full flex items-center justify-center text-base font-bold mb-2 border-2"
-                                  style={{ background: '#2a1a0a', color: '#cd7f32', borderColor: '#cd7f32' }}>
-                                  {initials(third.nome)}
-                                </div>
-                                <p className="text-[9px] font-medium uppercase tracking-widest mb-0.5" style={{ color: '#cd7f32' }}>🥉 3° Lugar</p>
-                                <p className="text-xs font-bold text-white leading-tight">{third.nome}</p>
-                                <p className="text-sm font-bold mt-1" style={{ color: '#cd7f32' }}>{formatCurrency(third.faturamento)}</p>
-                                <p className="text-[10px] mt-1" style={{ color: '#6b4226' }}>🏆 {third.vendas} vendas</p>
-                              </div>
-                            ) : <div className="flex-1" />}
-                          </div>
-
-                          {/* 4°+ lugar — lista */}
-                          {rest.length > 0 && (
-                            <div className="border-t px-5 py-3 flex flex-col gap-2.5" style={{ borderColor: '#1f2937' }}>
-                              {rest.map((s, i) => (
-                                <div key={s.nome} className="flex items-center gap-3">
-                                  <span className="text-xs text-gray-600 w-5 text-center font-bold">{i + 4}°</span>
-                                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
-                                    style={{ background: '#1f2937', color: '#6b7280' }}>
-                                    {initials(s.nome)}
-                                  </div>
-                                  <p className="flex-1 text-sm text-gray-300 truncate">{s.nome}</p>
-                                  <p className="text-xs text-gray-500">{s.vendas} vend.</p>
-                                  <p className="text-sm font-semibold text-gray-200 ml-2">{formatCurrency(s.faturamento)}</p>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })()}
                   </>
                 );
               })()}
