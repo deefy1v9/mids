@@ -58,6 +58,7 @@ export async function GET(req: NextRequest) {
     }
 
     const fromStr    = cfg.fromDate.toISOString().split('T')[0];
+    const toStr      = (cfg.toDate ?? todayDate).toISOString().split('T')[0];
     const chart14Str = new Date(todayDate.getTime() - 14 * 86400000).toISOString().split('T')[0];
 
     // ── Matches DB ──────────────────────────────────────────────────────────────
@@ -232,7 +233,7 @@ export async function GET(req: NextRequest) {
       revenueByDay[day] = (revenueByDay[day] ?? 0) + valor;
 
       // Ranking e revenue filtrado pelo período
-      if (day < fromStr) continue;
+      if (day < fromStr || day > toStr) continue;
 
       const atendente = String(c['Atendente'] ?? '').trim();
       if (atendente) {
