@@ -614,20 +614,7 @@ export default function Dashboard() {
                 const p = analyticsData;
                 return (
                   <>
-                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-                      {/* Vendas */}
-                      <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                        <div className="flex items-start justify-between mb-4">
-                          <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Vendas</p>
-                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm"
-                            style={{ background: '#F0FDF4' }}>🏆</div>
-                        </div>
-                        <div className="flex items-baseline gap-1">
-                          <span className="text-4xl font-bold text-gray-900">{p.sales}</span>
-                          <span className="text-sm text-gray-400 ml-1">fechamentos</span>
-                        </div>
-                      </div>
-
+                    <div className="grid grid-cols-1 gap-3 sm:gap-4">
                       {/* Meta Ads */}
                       <div className="rounded-2xl p-5 border shadow-sm relative overflow-hidden"
                         style={{ background: '#1a1035', borderColor: '#2d1f5e' }}>
@@ -647,34 +634,6 @@ export default function Dashboard() {
                         </div>
                       </div>
 
-                      {/* Chats novos */}
-                      <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                        <div className="flex items-start justify-between mb-4">
-                          <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Chats Novos</p>
-                          <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-sm">💬</div>
-                        </div>
-                        <span className="text-4xl font-bold text-gray-900">{p.newChats}</span>
-                        <p className="text-sm text-gray-400 mt-0.5">conversas</p>
-                      </div>
-
-                      {/* Tempo médio resposta */}
-                      <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                        <div className="flex items-start justify-between mb-4">
-                          <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Tempo Médio Resposta</p>
-                          <div className="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center text-sm">⏱</div>
-                        </div>
-                        <div className="flex items-baseline gap-1">
-                          <span className="text-4xl font-bold text-gray-900">
-                            {p.avgResponseMinutes < 60 ? p.avgResponseMinutes : Math.round(p.avgResponseMinutes / 60)}
-                          </span>
-                          <span className="text-sm text-gray-400 ml-1">
-                            {p.avgResponseMinutes < 60 ? 'min' : 'h'}
-                          </span>
-                        </div>
-                        {p.avgResponseMinutes === 0 && (
-                          <p className="text-xs text-gray-300 mt-1">sem dados</p>
-                        )}
-                      </div>
                     </div>
 
                   </>
@@ -835,161 +794,6 @@ export default function Dashboard() {
               )}
             </div>
 
-            {/* ── Row 1: 4 Stat Cards ── */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-
-              {/* Card: Clientes Processados */}
-              <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Clientes Processados</p>
-                    <div className="flex items-baseline gap-1 mt-2">
-                      <span className="text-4xl font-bold text-gray-900">{phonePct}</span>
-                      <span className="text-xl font-bold text-gray-300">%</span>
-                    </div>
-                  </div>
-                  <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-sm">⚙</div>
-                </div>
-                <div className="flex items-center gap-3 text-xs text-gray-500 mb-3">
-                  <span><b className="text-gray-700">{withPhone}</b> com tel</span>
-                  <span className="text-gray-200">|</span>
-                  <span><b className="text-gray-700">{stats.total}</b> total</span>
-                </div>
-                <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
-                  <div className="h-full rounded-full transition-all duration-700"
-                    style={{ width: `${phonePct}%`, background: '#AEFF6E' }} />
-                </div>
-              </div>
-
-              {/* Card: Leads Sincronizados */}
-              <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                <div className="flex items-start justify-between mb-2">
-                  <div className="min-w-0 mr-2">
-                    <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Leads Sincronizados</p>
-                    <div className="flex items-baseline gap-1 mt-2">
-                      <span className="text-4xl font-bold text-gray-900">{stats.won + stats.moved}</span>
-                    </div>
-                    <p className="text-xs text-gray-400 mt-1">{stats.won} ganhos · {stats.moved} movidos</p>
-                  </div>
-                  <div className="relative flex-shrink-0">
-                    <CircleProgress pct={successPct} size={56} stroke={6} color="#AEFF6E" />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-xs font-bold text-gray-800">{successPct}%</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="h-1 bg-gray-100 rounded-full overflow-hidden mt-3">
-                  <div className="h-full rounded-full transition-all duration-700"
-                    style={{ width: `${successPct}%`, background: '#AEFF6E' }} />
-                </div>
-              </div>
-
-              {/* Card: Anomalias */}
-              <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Anomalias</p>
-                    <div className="flex items-baseline gap-1 mt-2">
-                      <span className="text-4xl font-bold text-gray-900">{notFoundPct}</span>
-                      <span className="text-xl font-bold text-gray-300">%</span>
-                    </div>
-                  </div>
-                  <div className="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center text-sm">⚠</div>
-                </div>
-                <div className="flex items-center gap-3 text-xs mb-3">
-                  <span className="text-amber-500"><b>{stats.notFound}</b> sem match</span>
-                  <span className="text-gray-200">|</span>
-                  <span className="text-red-400"><b>{stats.errors}</b> erros</span>
-                </div>
-                <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
-                  <div className="h-full rounded-full transition-all duration-700"
-                    style={{ width: `${notFoundPct}%`, background: '#fbbf24' }} />
-                </div>
-              </div>
-
-              {/* Card: Taxa de Sucesso (dark) */}
-              <div className="rounded-2xl p-5 border shadow-sm relative overflow-hidden"
-                style={{ background: '#111827', borderColor: '#1f2937' }}>
-                <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full opacity-30"
-                  style={{ background: '#AEFF6E', filter: 'blur(30px)' }} />
-                <div className="relative">
-                  <div className="flex items-start justify-between mb-4">
-                    <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Taxa de Sucesso</p>
-                    <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
-                      style={{ background: '#AEFF6E', color: '#111' }}>↑</div>
-                  </div>
-                  <div className="flex items-baseline gap-1 mb-1">
-                    <span className="text-4xl font-bold text-white">{successPct}</span>
-                    <span className="text-xl font-bold text-gray-600">%</span>
-                  </div>
-                  <p className="text-xs text-gray-500 mb-4">{stats.won + stats.moved} de {stats.total} total</p>
-                  <Sparkline data={dailyData.map(([, v]) => v)} color="#AEFF6E" height={36} />
-                </div>
-              </div>
-            </div>
-
-            {/* ── Row 2: Fechamentos + Vendido Meta Ads ── */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 mt-3 sm:mt-4">
-              <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                <p className="text-xs text-gray-400 font-medium uppercase tracking-wide mb-3">Fechamentos</p>
-                <div className="flex items-center gap-6">
-                  <div>
-                    <span className="text-4xl font-bold text-gray-900">{stats.won + stats.moved}</span>
-                    <p className="text-xs text-gray-400 mt-0.5">leads atualizados</p>
-                  </div>
-                  <div className="w-px h-10 bg-gray-100" />
-                  <div>
-                    <span className="text-4xl font-bold" style={{ color: '#16a34a' }}>{stats.won}</span>
-                    <p className="text-xs text-gray-400 mt-0.5">ganhos</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Card: Vendido — Meta Ads */}
-              <div className="rounded-2xl p-5 border shadow-sm relative overflow-hidden"
-                style={{ background: '#0e1726', borderColor: '#1a2a4a' }}>
-                <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full opacity-20"
-                  style={{ background: '#1877F2', filter: 'blur(30px)' }} />
-                <div className="relative">
-                  <div className="flex items-start justify-between mb-4">
-                    <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Vendido · Meta Ads</p>
-                    <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
-                      style={{ background: '#1877F2', color: '#fff' }}>f</div>
-                  </div>
-                  {loadingVendido ? (
-                    <div className="w-4 h-4 border-2 border-gray-600 border-t-transparent rounded-full animate-spin" />
-                  ) : vendidoData?.error ? (
-                    <p className="text-xs text-red-400">Erro ao carregar</p>
-                  ) : (
-                    <>
-                      <div className="flex items-baseline gap-4">
-                        <div>
-                          <span className="text-4xl font-bold text-white">{vendidoData?.metaAds ?? '—'}</span>
-                          <p className="text-xs mt-0.5" style={{ color: '#93c5fd' }}>origem Meta Ads</p>
-                        </div>
-                        {(vendidoData?.total ?? 0) > 0 && (
-                          <>
-                            <div className="w-px h-10 bg-gray-700" />
-                            <div>
-                              <span className="text-2xl font-bold text-gray-400">{vendidoData?.total}</span>
-                              <p className="text-xs text-gray-500 mt-0.5">total vendido</p>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                      {vendidoData?.stageName && (
-                        <p className="text-xs text-gray-600 mt-3 truncate">
-                          {vendidoData.pipelineName} · {vendidoData.stageName}
-                        </p>
-                      )}
-                      {vendidoData && !vendidoData.stageName && (
-                        <p className="text-xs text-amber-600 mt-2">Etapa "Vendido" não encontrada</p>
-                      )}
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
 
             {/* ── Funil de Conversão (independente do pipeline) ── */}
             {(() => {
