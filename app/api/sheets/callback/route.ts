@@ -11,7 +11,11 @@ export async function GET(req: NextRequest) {
     if (!code) return NextResponse.json({ error: 'missing code' }, { status: 400 });
     const { tokens } = await getOAuth2Client().getToken(code);
     await saveTokens(tokens);
-    return NextResponse.redirect(new URL('/', req.url));
+    // Usar o domínio do GOOGLE_REDIRECT_URI para evitar redirecionar para 0.0.0.0 (interno Docker)
+    const base = process.env.GOOGLE_REDIRECT_URI
+      ? new URL(process.env.GOOGLE_REDIRECT_URI).origin
+      : new URL(req.url).origin;
+    return NextResponse.redirect(`${base}/`);
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }
